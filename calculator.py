@@ -1,169 +1,39 @@
-import json
 import math
-from pathlib import Path
-from typing import Any, Dict, List
 
+class CostCalculator:
+    @staticmethod
+    def calculate(work, event, buy_episodes, coin_to_krw=120, krw_to_cny=5.3):
+        """
+        计算购买成本、返还与法币折算
+        """
+        original_ep_cost = work.get("original_coin_per_ep", 3)
+        event_ep_cost = event.get("pay_coin", original_ep_cost)
+        cashback_ratio = event.get("cashback_ratio", 0.0)
 
-BASE_DIR = Path(__file__).resolve().parent
-CATALOG_PATH = BASE_DIR / "data" / "products.json"
+        # 1. 原价总额
+        original_total = buy_episodes * original_ep_cost
 
+        # 2. 实际支付代币
+        discounted_pay = math.ceil(buy_episodes * event_ep_cost)
 
-def load_catalog(path: Path = CATALOG_PATH) -> Dict[str, Any]:
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+        # 3. 返还代币/积分
+        cashback_amount = math.floor(discounted_pay * cashback_ratio)
 
+        # 4. 净消耗代币
+        net_coin_cost = discounted_pay - cashback_amount
 
-def _to_number(value: Any, default: float = 0.0) -> float:
-    try:
-        if value in (None, ""):
-            return default
-        return float(value)
-    except (TypeError, ValueError):
-        return default
+        # 5. 折算人民币 (Ridibooks 本身就是以韩元为单位)
+        if work.get("platform") == "Ridibooks":
+            krw_total = net_coin_cost
+        else:
+            krw_total = net_coin_cost * coin_to_krw
 
+        cny_total = round((krw_total / 1000.0) * krw_to_cny, 2)
 
-def _to_int(value: Any, default: int = 0) -> int:
-    try:
-        if value in (None, ""):
-            return default
-        return max(0, int(float(value)))
-    except (TypeError, ValueError):
-        return default
-
-
-def _event_meta(catalog: Dict[str, Any], event_name: str) -> Dict[str, Any]:
-    for event in catalog.get("events", []):
-        if event.get("name") == event_name:
-            return event
-    return {}
-
-
-def estimate_rewards(event_name: str, currency: str, subtotal_original: float) -> List[Dict[str, Any]]:
-    """依照 Excel 裡看得到的滿額文字做保守估算；實際以官方公告為準。"""
-    rewards: List[Dict[str, Any]] = []
-
-    if "SPAKLZ 2026 WORLD TOUR 台北場" in event_name or "0606-0621" in event_name:
-        rewards.append({
-            "label": "NT$1,000 滿贈 Skinship 明信片",
-            "count": 1 if subtotal_original >= 1000 else 0,
-            "note": "每人每日入場限兌換 1 張，不累贈。"
-        })
-        rewards.append({
-            "label": "NT$2,000 滿贈小卡",
-            "count": int(subtotal_original // 1000) if subtotal_original >= 2000 else 0,
-            "note": "2,000 贈 2 張，其後每滿 1,000 再贈 1 張。"
-        })
-    elif "韓國" in event_name:
-        rewards.append({
-            "label": "₩50,000 滿贈親密互動畫面相卡",
-            "count": 1 if subtotal_original >= 50000 else 0,
-            "note": "線下每人每場最多 1 張。"
-        })
-        rewards.append({
-            "label": "₩100,000 滿贈透卡＋小卡組",
-            "count": min(7, int(subtotal_original // 100000)),
-            "note": "可累贈，每人每場上限 70 萬韓幣，也就是最多 7 組。"
-        })
-    elif "白夜" in event_name:
-        rewards.append({
-            "label": "每消費滿 NT$1,000 贈滿額小卡",
-            "count": int(subtotal_original // 1000),
-            "note": "白夜滿額禮：每消費滿 1,000 元贈 1 張滿額小卡，可累積贈送。"
-        })
-
-    return rewards
-
-
-def calculate_summary(catalog: Dict[str, Any], payload: Dict[str, Any]) -> Dict[str, Any]:
-    event_name = payload.get("event") or (catalog.get("events") or [{}])[0].get("name")
-    products = catalog.get("products_by_event", {}).get(event_name, [])
-    meta = _event_meta(catalog, event_name)
-    currency = meta.get("currency") or (products[0].get("currency") if products else "TWD")
-
-    default_rate = _to_number(meta.get("default_exchange_rate"), 1.0)
-    exchange_rate = _to_number(payload.get("exchange_rate"), default_rate)
-    if exchange_rate <= 0:
-        exchange_rate = default_rate or 1.0
-
-    quantities = payload.get("quantities") or {}
-
-    selected_items = []
-    subtotal_original = 0.0
-    warnings = []
-
-    for p in products:
-        pid = p.get("id")
-        original_qty = _to_int(quantities.get(pid, p.get("default_qty", 0)))
-        qty = original_qty
-        if qty <= 0:
-            continue
-
-        limit = p.get("limit")
-        if isinstance(limit, int) and limit > 0 and qty > limit:
-            warnings.append(f"{p.get('item')} {p.get('variant') or ''} 已依官方備註限購調整為 {limit}。")
-            qty = limit
-
-        price = _to_number(p.get("price"))
-        line_total = price * qty
-        subtotal_original += line_total
-
-        selected_items.append({
-            "id": pid,
-            "item": p.get("item"),
-            "variant": p.get("variant"),
-            "price": price,
-            "qty": qty,
-            "line_total": line_total,
-            "currency": currency,
-            "note": p.get("note"),
-            "limit": limit
-        })
-
-    subtotal_twd = subtotal_original * exchange_rate
-
-    extras_input = payload.get("extras") or {}
-    extras = {
-        "交通費": _to_number(extras_input.get("transport")),
-        "餐飲費": _to_number(extras_input.get("food")),
-        "住宿費": _to_number(extras_input.get("lodging")),
-        "入場/票券": _to_number(extras_input.get("ticket")),
-        "代購/服務費": _to_number(extras_input.get("proxy_fee")),
-        "付款/轉帳手續費": _to_number(extras_input.get("payment_fee")),
-        "其他雜費": _to_number(extras_input.get("other")),
-    }
-
-    service_rate_percent = _to_number(extras_input.get("service_rate_percent"))
-    service_rate_amount = subtotal_twd * service_rate_percent / 100
-    if service_rate_amount:
-        extras[f"商品金額加成 {service_rate_percent:g}%"] = service_rate_amount
-
-    extras_total = sum(extras.values())
-
-    reserve_rate_percent = _to_number(extras_input.get("reserve_rate_percent"), 0)
-    reserve_amount = (subtotal_twd + extras_total) * reserve_rate_percent / 100
-
-    grand_total_twd = subtotal_twd + extras_total + reserve_amount
-    cash_suggestion = math.ceil(grand_total_twd / 100) * 100 if grand_total_twd > 0 else 0
-
-    budget = _to_number(payload.get("budget"))
-    remaining = budget - grand_total_twd if budget > 0 else None
-
-    return {
-        "event": event_name,
-        "currency": currency,
-        "exchange_rate": exchange_rate,
-        "selected_count": len(selected_items),
-        "subtotal_original": round(subtotal_original, 2),
-        "subtotal_twd": round(subtotal_twd),
-        "extras": {k: round(v) for k, v in extras.items()},
-        "extras_total": round(extras_total),
-        "reserve_rate_percent": reserve_rate_percent,
-        "reserve_amount": round(reserve_amount),
-        "grand_total_twd": round(grand_total_twd),
-        "cash_suggestion": round(cash_suggestion),
-        "budget": round(budget) if budget > 0 else 0,
-        "remaining": round(remaining) if remaining is not None else None,
-        "selected_items": selected_items,
-        "warnings": warnings,
-        "rewards": estimate_rewards(event_name, currency, subtotal_original),
-    }
+        return {
+            "original_total": original_total,
+            "discounted_pay": discounted_pay,
+            "cashback_amount": cashback_amount,
+            "net_coin_cost": net_coin_cost,
+            "cny_cost": cny_total
+        }
