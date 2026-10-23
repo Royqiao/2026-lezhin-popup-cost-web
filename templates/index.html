@@ -1,160 +1,166 @@
-<!doctype html>
-<html lang="zh-Hant">
+<!DOCTYPE html>
+<html lang="zh-CN">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Lezhin 線下快閃花費計算器</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>韩漫作品历史促销档案 & 抄底测算器</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SheetJS CDN (支持 Excel/CSV 导入解析) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Vue 3 CDN -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <!-- 自定义外部样式 -->
+  <link rel="stylesheet" href="/static/style.css" />
 </head>
-<body>
-  <header class="hero">
-    <div>
-      <p class="eyebrow">Excel 商品清單轉換</p>
-      <h1>Lezhin 線下快閃花費計算器</h1>
-      <p class="sub">選商品數量、輸入交通餐飲等額外費用，後端會幫你計算商品總額、台幣換算、預備金與滿額贈估算。</p>
-    </div>
-    <button id="printBtn" class="secondary">列印／存成 PDF</button>
-  </header>
-
-  <main class="layout">
-    <section class="panel controls" aria-labelledby="settingsTitle">
-      <h2 id="settingsTitle">1. 場次與費用設定</h2>
-
-      <label>
-        場次
-        <select id="eventSelect"></select>
-      </label>
-
-      <div class="grid-two">
-        <label>
-          匯率
-          <input id="exchangeRate" type="number" inputmode="decimal" step="0.0001" min="0" value="1">
-          <span class="hint">台幣場填 1；韓國場可填「1 韓元約幾台幣」。</span>
-        </label>
-
-        <label>
-          預算上限（台幣）
-          <input id="budget" type="number" inputmode="numeric" min="0" step="1" placeholder="例如 6000">
-        </label>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <div id="app" v-cloak class="max-w-6xl mx-auto px-4 py-8">
+    
+    <!-- 顶部 Header -->
+    <header class="mb-8 text-center sm:text-left sm:flex sm:justify-between sm:items-end border-b border-slate-200 pb-6">
+      <div>
+        <div class="inline-flex items-center gap-2 px-3 py-1 bg-rose-50 text-rose-600 rounded-full text-xs font-semibold mb-2">
+          <span>✨ 2026 韩国漫画大促历史数据库 (Flask 驱动)</span>
+        </div>
+        <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">韩漫历史促销档案 & 抄底测算器</h1>
+        <p class="text-slate-500 text-sm mt-1">涵盖 Lezhin / Bomtoon / Ridibooks / Mr.Blue 历来 100% 返还、1c 展与半价节点</p>
       </div>
 
-      <details>
-        <summary>額外費用</summary>
-        <div class="expense-grid">
-          <label>交通費 <input data-extra="transport" type="number" inputmode="numeric" min="0" step="1" value="0"></label>
-          <label>餐飲費 <input data-extra="food" type="number" inputmode="numeric" min="0" step="1" value="0"></label>
-          <label>住宿費 <input data-extra="lodging" type="number" inputmode="numeric" min="0" step="1" value="0"></label>
-          <label>入場/票券 <input data-extra="ticket" type="number" inputmode="numeric" min="0" step="1" value="0"></label>
-          <label>代購/服務費 <input data-extra="proxy_fee" type="number" inputmode="numeric" min="0" step="1" value="0"></label>
-          <label>付款/轉帳手續費 <input data-extra="payment_fee" type="number" inputmode="numeric" min="0" step="1" value="0"></label>
-          <label>其他雜費 <input data-extra="other" type="number" inputmode="numeric" min="0" step="1" value="0"></label>
-          <label>商品加成 % <input data-extra="service_rate_percent" type="number" inputmode="decimal" min="0" step="0.1" value="0"></label>
-          <label>預備金 %（可選填） <input data-extra="reserve_rate_percent" type="number" inputmode="decimal" min="0" step="0.1" value="0"></label>
-        </div>
-      </details>
-
-      <div class="actions">
-        <button id="resetBtn" class="secondary">清空數量</button>
-      </div>
-    </section>
-
-    <aside class="panel summary" id="summaryPanel" aria-labelledby="summaryTitle">
-      <h2 id="summaryTitle">2. 計算結果</h2>
-      <div class="cards">
-        <div class="card">
-          <span>商品原幣總額</span>
-          <strong id="subtotalOriginal">0</strong>
-        </div>
-        <div class="card">
-          <span>商品台幣換算</span>
-          <strong id="subtotalTwd">NT$0</strong>
-        </div>
-        <div class="card">
-          <span>額外費用</span>
-          <strong id="extrasTotal">NT$0</strong>
-        </div>
-        <div class="card primary">
-          <span>預估總花費</span>
-          <strong id="grandTotal">NT$0</strong>
-        </div>
-      </div>
-
-      <div class="budget-line" id="budgetLine">尚未設定預算。</div>
-      <div class="cash-line" id="cashSuggestion">建議至少準備：NT$0</div>
-
-      <section class="reward-panel" aria-labelledby="rewardTitle">
-        <div class="reward-header">
+      <!-- 汇率与导入按钮 -->
+      <div class="mt-4 sm:mt-0 flex flex-col sm:items-end gap-3">
+        <div class="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm text-xs flex items-center gap-4">
           <div>
-            <p class="reward-eyebrow">滿額禮提醒</p>
-            <h3 id="rewardTitle">🎁 滿額贈估算</h3>
+            <span class="text-slate-400 block text-[10px]">1代币≈韩元</span>
+            <input v-model.number="exchangeRate.coinToKrw" type="number" class="w-14 font-bold border-b border-slate-300 focus:outline-none" /> ₩
           </div>
-          <span id="rewardSummaryBadge" class="reward-summary-badge">計算中</span>
+          <div class="border-l pl-3">
+            <span class="text-slate-400 block text-[10px]">1000韩元≈人民币</span>
+            <input v-model.number="exchangeRate.krwToCny" type="number" step="0.1" class="w-12 font-bold border-b border-slate-300 focus:outline-none" /> ¥
+          </div>
         </div>
-        <p id="rewardHint" class="reward-hint">選擇商品後會依目前商品金額估算可領數量。</p>
-        <ul id="rewardList" class="reward-list"></ul>
-      </section>
 
-      <h3>已選商品</h3>
-      <div id="cartList" class="cart-list empty">目前尚未選擇商品。</div>
-
-      <div id="warningList" class="warnings"></div>
-    </aside>
-
-    <section class="panel products-panel" aria-labelledby="productsTitle">
-      <div class="products-head">
-        <div>
-          <h2 id="productsTitle">3. 商品清單</h2>
-          <p id="eventInfo" class="hint"></p>
-        </div>
-        <div class="toolbar">
-          <input id="searchInput" type="search" placeholder="搜尋品項、款式、備註…">
-          <label class="checkline">
-            <input id="selectedOnly" type="checkbox">
-            只看已選
-          </label>
+        <div class="flex items-center gap-2">
+          <input type="file" ref="fileInput" @change="handleImportExcel" accept=".xlsx,.xls,.csv" class="hidden" />
+          <button @click="$refs.fileInput.click()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm transition">
+            📥 导入 Excel 表格
+          </button>
+          <button @click="downloadTemplate" class="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold transition">
+            📄 下载模板
+          </button>
         </div>
       </div>
+    </header>
 
-      <div class="mobile-tip">手機版會自動改成商品卡片，可以直接按 ＋／－ 調整數量。</div>
-
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>品項</th>
-              <th>款式</th>
-              <th>單價</th>
-              <th>數量</th>
-              <th>小計</th>
-              <th>說明</th>
-            </tr>
-          </thead>
-          <tbody id="productsBody"></tbody>
-        </table>
+    <!-- 筛选工具栏 -->
+    <section class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm mb-6 space-y-4">
+      <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
+        <div class="sm:col-span-5 relative">
+          <input v-model="filters.query" type="text" placeholder="搜索作品名(中/韩)或活动名..." class="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-xl focus:border-rose-500 outline-none" />
+          <span class="absolute left-3 top-2.5 text-slate-400">🔍</span>
+        </div>
+        <div class="sm:col-span-4">
+          <select v-model="filters.platform" class="w-full py-2 px-3 text-sm border border-slate-200 rounded-xl bg-white outline-none">
+            <option value="">全部平台 (All Platforms)</option>
+            <option v-for="p in platformList" :key="p" :value="p">{{ p }}</option>
+          </select>
+        </div>
+        <div class="sm:col-span-3">
+          <select v-model="filters.eventType" class="w-full py-2 px-3 text-sm border border-slate-200 rounded-xl bg-white outline-none">
+            <option value="">全部优惠力度 (All Types)</option>
+            <option value="100% Coinback">100% 全额返币</option>
+            <option value="100% Payback">100% 积分返还</option>
+            <option value="1c 展">1 Coin (1c 展)</option>
+            <option value="2c 展">2 Coin (2c 特惠)</option>
+            <option value="50% 折扣">50% 半价/租借折减</option>
+            <option value="积分返现">大额返现 (Cashback)</option>
+          </select>
+        </div>
       </div>
     </section>
-  </main>
 
-  <div class="mobile-total-bar" aria-live="polite">
-    <div class="mobile-total-main">
-      <span>預估總花費</span>
-      <strong id="mobileGrandTotal">NT$0</strong>
-      <small id="mobileSelectedCount">已選 0 項</small>
+    <!-- 作品列表展示 -->
+    <main class="space-y-4">
+      <div v-for="work in filteredWorks" :key="work.id" class="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
+        <div class="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2 mb-1.5">
+              <span class="px-2.5 py-0.5 text-xs font-bold rounded-md" :class="getPlatformBadge(work.platform)">{{ work.platform }}</span>
+              <span class="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md font-medium">{{ work.genre }}</span>
+              <span class="text-xs text-slate-400">共 {{ work.total_episodes }} 话</span>
+            </div>
+            <h2 class="text-xl font-bold text-slate-900">{{ work.title_zh }} <span class="text-sm font-normal text-slate-500">({{ work.title_ko }})</span></h2>
+          </div>
+          <div class="text-right">
+            <span class="text-xs text-slate-400 block">标准单话价格</span>
+            <span class="font-bold text-slate-700 font-mono">{{ work.original_coin_per_ep }} {{ work.currency }}</span>
+          </div>
+        </div>
+
+        <!-- 历史促销记录 -->
+        <div class="border-t border-slate-100 bg-slate-50/50 p-4 sm:p-5">
+          <div class="grid grid-cols-1 gap-2.5">
+            <div v-for="(event, idx) in work.history" :key="idx" class="bg-white border border-slate-200/80 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-sm">
+              <div class="space-y-1">
+                <div class="flex items-center gap-2">
+                  <span class="font-mono text-slate-500 font-bold bg-slate-100 px-1.5 py-0.5 rounded">{{ event.date }}</span>
+                  <span class="font-semibold text-slate-900 text-sm">{{ event.event_name }}</span>
+                  <span class="px-2 py-0.5 rounded text-[11px] font-bold" :class="getEventTypeBadge(event.event_type)">{{ event.event_type }}</span>
+                </div>
+                <div class="text-slate-500">🎯 适用：{{ event.target_episodes }} · 规则：{{ event.rule_desc }}</div>
+              </div>
+              <button @click="openCalculator(work, event)" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white rounded-lg font-semibold transition">
+                🧮 测算成本
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- 弹窗计算器 -->
+    <div v-if="calculator.visible" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl border">
+        <div class="flex justify-between items-start border-b pb-3">
+          <div>
+            <div class="text-xs font-semibold text-indigo-600">{{ calculator.work.platform }}</div>
+            <h3 class="text-lg font-bold text-slate-900">{{ calculator.work.title_zh }}</h3>
+          </div>
+          <button @click="calculator.visible = false" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">购买话数 (1 ~ {{ calculator.work.total_episodes }})</label>
+          <input v-model.number="calculator.buyEpisodes" type="number" min="1" :max="calculator.work.total_episodes" class="w-full border rounded-lg p-2 text-sm font-bold" />
+        </div>
+
+        <div class="bg-gradient-to-br from-slate-900 to-indigo-950 text-white p-4 rounded-xl space-y-2">
+          <div class="flex justify-between text-xs text-slate-300">
+            <span>原价需付：</span>
+            <span class="line-through">{{ calcOriginalTotal }} {{ calculator.work.currency }}</span>
+          </div>
+          <div class="flex justify-between text-sm font-semibold text-amber-400">
+            <span>活动实际支付：</span>
+            <span>{{ calcDiscountedPay }} {{ calculator.work.currency }}</span>
+          </div>
+          <div v-if="calcCashback > 0" class="flex justify-between text-sm font-semibold text-emerald-400">
+            <span>全额返还 (Bonus)：</span>
+            <span>+ {{ calcCashback }} 代币/积分</span>
+          </div>
+          <div class="border-t border-slate-800 pt-2 flex justify-between items-baseline">
+            <span class="text-xs text-slate-400">折合人民币 ≈ ¥{{ calcCnyCost }} 元</span>
+            <span class="text-2xl font-black">{{ calcNetCoinCost }} <span class="text-xs">{{ calculator.work.currency }}</span></span>
+          </div>
+        </div>
+
+        <button @click="calculator.visible = false" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold">
+          关闭
+        </button>
+      </div>
     </div>
-    <div class="mobile-total-actions">
-      <button id="mobileResetBtn" type="button" class="mobile-clear-btn">清空</button>
-      <a href="#summaryPanel">明細</a>
-    </div>
+
   </div>
 
-  <script id="catalog-data" type="application/json">
-    {{ catalog | tojson }}
-  </script>
-  <script>
-    window.__CATALOG__ = JSON.parse(
-      document.getElementById("catalog-data").textContent
-    );
-  </script>
-  <script src="{{ url_for('static', filename='app.js') }}"></script>
+  <!-- 引入前端 Vue 逻辑 -->
+  <script src="/static/app.js"></script>
 </body>
 </html>
