@@ -4,29 +4,34 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>韩漫作品历史促销档案 & 抄底测算器</title>
-  <!-- Tailwind CSS CDN -->
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- SheetJS CDN (支持 Excel/CSV 导入解析) -->
+  <!-- SheetJS CDN (表格导入) -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <!-- Vue 3 CDN -->
-  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-  <!-- 自定义外部样式 -->
-  <link rel="stylesheet" href="/static/style.css" />
+  <!-- Vue 3 高速 CDN (带备用节点容灾) -->
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.3.4/dist/vue.global.prod.js"></script>
+  <script>
+    if (typeof Vue === 'undefined') {
+      document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.prod.min.js"><\/script>');
+    }
+  </script>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen">
-  <div id="app" v-cloak class="max-w-6xl mx-auto px-4 py-8">
+
+  {% raw %}
+  <div id="app" class="max-w-6xl mx-auto px-4 py-8">
     
     <!-- 顶部 Header -->
     <header class="mb-8 text-center sm:text-left sm:flex sm:justify-between sm:items-end border-b border-slate-200 pb-6">
       <div>
         <div class="inline-flex items-center gap-2 px-3 py-1 bg-rose-50 text-rose-600 rounded-full text-xs font-semibold mb-2">
-          <span>✨ 2026 韩国漫画大促历史数据库 (Flask 驱动)</span>
+          <span>✨ 2026 韩国漫画大促历史数据库</span>
         </div>
         <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">韩漫历史促销档案 & 抄底测算器</h1>
         <p class="text-slate-500 text-sm mt-1">涵盖 Lezhin / Bomtoon / Ridibooks / Mr.Blue 历来 100% 返还、1c 展与半价节点</p>
       </div>
 
-      <!-- 汇率与导入按钮 -->
+      <!-- 汇率设置与导入 -->
       <div class="mt-4 sm:mt-0 flex flex-col sm:items-end gap-3">
         <div class="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm text-xs flex items-center gap-4">
           <div>
@@ -118,7 +123,7 @@
     </main>
 
     <!-- 弹窗计算器 -->
-    <div v-if="calculator.visible" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div v-if="calculator.visible && calculator.work" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl border">
         <div class="flex justify-between items-start border-b pb-3">
           <div>
@@ -159,8 +164,293 @@
     </div>
 
   </div>
+  {% endraw %}
 
-  <!-- 引入前端 Vue 逻辑 -->
-  <script src="/static/app.js"></script>
+  <!-- 内置脚本逻辑与容灾数据 -->
+  <script>
+    // 默认内置的 2026 数据（防止后端接口未准备好时出现白屏）
+    const DEFAULT_DATA = [
+      {
+        id: "lz-01",
+        title_ko: "시시포스의 개들",
+        title_zh: "西西弗斯的狗",
+        platform: "Lezhin KR",
+        currency: "Coin",
+        genre: "BL / 剧情",
+        original_coin_per_ep: 3,
+        total_episodes: 45,
+        history: [{
+          event_name: "2026 설맞이 100% 코인백 (新春全额返币)",
+          event_type: "100% Coinback",
+          date: "2026-02",
+          pay_coin: 3,
+          cashback_ratio: 1.0,
+          target_episodes: "全篇全话",
+          rule_desc: "全本购买消耗代币100%返还为Bonus币"
+        }]
+      },
+      {
+        id: "lz-02",
+        title_ko: "야화첩",
+        title_zh: "夜画帐",
+        platform: "Lezhin KR",
+        currency: "Coin",
+        genre: "BL / 古风台柱",
+        original_coin_per_ep: 3,
+        total_episodes: 130,
+        history: [{
+          event_name: "2026 추석 다다익선 대기획 (中秋多多益善展)",
+          event_type: "2c 展",
+          date: "2026-09",
+          pay_coin: 2,
+          cashback_ratio: 0.3,
+          target_episodes: "前 30 话",
+          rule_desc: "前30话降至2c，消费满50币额外返30%"
+        }]
+      },
+      {
+        id: "bt-01",
+        title_ko: "창 너머 창",
+        title_zh: "窗外之窗",
+        platform: "Bomtoon",
+        currency: "Coin",
+        genre: "BL / 经典",
+        original_coin_per_ep: 3,
+        total_episodes: 65,
+        history: [{
+          event_name: "2026 BAAM Festa 신년 1코인전",
+          event_type: "1c 展",
+          date: "2026-01",
+          pay_coin: 1,
+          cashback_ratio: 0.0,
+          target_episodes: "全篇全话",
+          rule_desc: "全篇统一降至 1 Coin/话"
+        }]
+      },
+      {
+        id: "rd-01",
+        title_ko: "페이백 (PAYBACK)",
+        title_zh: "偿还 (PAYBACK)",
+        platform: "Ridibooks",
+        currency: "Point/Cash",
+        genre: "BL / 演艺圈",
+        original_coin_per_ep: 500,
+        total_episodes: 85,
+        history: [{
+          event_name: "2026 설 연휴 100% 포인트백",
+          event_type: "100% Payback",
+          date: "2026-02",
+          pay_coin: 500,
+          cashback_ratio: 1.0,
+          target_episodes: "单行本第 1~4 卷",
+          rule_desc: "全额返还等值 Ridi 积分"
+        }]
+      }
+    ];
+
+    window.addEventListener('DOMContentLoaded', () => {
+      if (typeof Vue === 'undefined') {
+        alert("网络加载 Vue 库超时，请检查网络或刷新页面重试！");
+        return;
+      }
+
+      const { createApp, ref, computed, onMounted } = Vue;
+
+      createApp({
+        setup() {
+          const works = ref(DEFAULT_DATA);
+          const exchangeRate = ref({ coinToKrw: 120, krwToCny: 5.3 });
+          const filters = ref({ query: '', platform: '', eventType: '' });
+          const platformList = ['Lezhin KR', 'Bomtoon', 'Ridibooks', 'Mr.Blue', 'Lezhin US'];
+
+          // 尝试从后端读取，如果后端报错就保留 DEFAULT_DATA
+          const fetchProducts = async () => {
+            try {
+              const res = await fetch('/api/products');
+              if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data) && data.length > 0) {
+                  works.value = data;
+                }
+              }
+            } catch (err) {
+              console.log('使用内置数据渲染');
+            }
+          };
+
+          onMounted(() => {
+            fetchProducts();
+          });
+
+          const filteredWorks = computed(() => {
+            return works.value.filter(work => {
+              const q = filters.value.query.trim().toLowerCase();
+              const matchQuery = !q ||
+                work.title_ko.toLowerCase().includes(q) ||
+                work.title_zh.toLowerCase().includes(q) ||
+                work.history.some(h => h.event_name.toLowerCase().includes(q));
+
+              const matchPlatform = !filters.value.platform || work.platform === filters.value.platform;
+              const matchEventType = !filters.value.eventType ||
+                work.history.some(h => h.event_type.includes(filters.value.eventType));
+
+              return matchQuery && matchPlatform && matchEventType;
+            });
+          });
+
+          const getPlatformBadge = (p) => {
+            const map = {
+              'Lezhin KR': 'bg-red-100 text-red-700',
+              'Bomtoon': 'bg-rose-100 text-rose-700',
+              'Ridibooks': 'bg-blue-100 text-blue-700',
+              'Mr.Blue': 'bg-sky-100 text-sky-700',
+              'Lezhin US': 'bg-purple-100 text-purple-700'
+            };
+            return map[p] || 'bg-slate-100 text-slate-700';
+          };
+
+          const getEventTypeBadge = (t) => {
+            if (t.includes('100%')) return 'bg-emerald-100 text-emerald-800';
+            if (t.includes('1c')) return 'bg-amber-100 text-amber-800';
+            if (t.includes('2c')) return 'bg-orange-100 text-orange-800';
+            if (t.includes('50%')) return 'bg-indigo-100 text-indigo-800';
+            return 'bg-slate-100 text-slate-700';
+          };
+
+          const calculator = ref({ visible: false, work: null, event: null, buyEpisodes: 10 });
+
+          const openCalculator = (work, event) => {
+            calculator.value = {
+              visible: true,
+              work: work,
+              event: event,
+              buyEpisodes: work.total_episodes || 10
+            };
+          };
+
+          const calcOriginalTotal = computed(() => {
+            if (!calculator.value.work) return 0;
+            return calculator.value.buyEpisodes * calculator.value.work.original_coin_per_ep;
+          });
+
+          const calcDiscountedPay = computed(() => {
+            if (!calculator.value.event) return 0;
+            return Math.ceil(calculator.value.buyEpisodes * (calculator.value.event.pay_coin || 3));
+          });
+
+          const calcCashback = computed(() => {
+            if (!calculator.value.event) return 0;
+            return Math.floor(calcDiscountedPay.value * (calculator.value.event.cashback_ratio || 0));
+          });
+
+          const calcNetCoinCost = computed(() => {
+            return calcDiscountedPay.value - calcCashback.value;
+          });
+
+          const calcCnyCost = computed(() => {
+            if (calculator.value.work?.platform === 'Ridibooks') {
+              return ((calcNetCoinCost.value / 1000) * exchangeRate.value.krwToCny).toFixed(2);
+            }
+            const krw = calcNetCoinCost.value * exchangeRate.value.coinToKrw;
+            return ((krw / 1000) * exchangeRate.value.krwToCny).toFixed(2);
+          });
+
+          const handleImportExcel = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (evt) => {
+              try {
+                const data = new Uint8Array(evt.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+
+                const workMap = new Map();
+                rows.forEach((row, i) => {
+                  const platform = row['平台'] || 'Lezhin KR';
+                  const titleZh = row['作品中文名'] || '未命名作品';
+                  const titleKo = row['作品韩文名'] || titleZh;
+                  const key = `${platform}_${titleKo}`;
+
+                  if (!workMap.has(key)) {
+                    workMap.set(key, {
+                      id: `import-${Date.now()}-${i}`,
+                      title_ko: String(titleKo),
+                      title_zh: String(titleZh),
+                      platform: String(platform),
+                      currency: platform === 'Ridibooks' ? 'Point/Cash' : 'Coin',
+                      genre: row['类型'] || 'BL',
+                      original_coin_per_ep: Number(row['单话原价']) || 3,
+                      total_episodes: Number(row['总话数']) || 10,
+                      history: []
+                    });
+                  }
+
+                  workMap.get(key).history.push({
+                    event_name: row['活动名称'] || '大促特惠',
+                    event_type: row['优惠类型'] || '1c 展',
+                    date: String(row['活动时间'] || '2026'),
+                    pay_coin: Number(row['活动单价']) || 1,
+                    cashback_ratio: Number(row['返还比例']) || 0.0,
+                    target_episodes: String(row['适用范围'] || '全篇'),
+                    rule_desc: String(row['规则备注'] || '无')
+                  });
+                });
+
+                works.value = Array.from(workMap.values());
+                alert(`成功导入 ${works.value.length} 部作品！`);
+                e.target.value = '';
+              } catch (err) {
+                alert('解析 Excel 失败，请检查格式');
+              }
+            };
+            reader.readAsArrayBuffer(file);
+          };
+
+          const downloadTemplate = () => {
+            const template = [{
+              "平台": "Lezhin KR",
+              "作品中文名": "西西弗斯的狗",
+              "作品韩文名": "시시포스의 개들",
+              "类型": "BL",
+              "单话原价": 3,
+              "总话数": 45,
+              "活动时间": "2026-02",
+              "活动名称": "2026新春全额返",
+              "优惠类型": "100% Coinback",
+              "活动单价": 3,
+              "返还比例": 1.0,
+              "适用范围": "全篇",
+              "规则备注": "全额返还Bonus币"
+            }];
+            const ws = XLSX.utils.json_to_sheet(template);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "导入模板");
+            XLSX.writeFile(wb, "韩漫促销导入模板.xlsx");
+          };
+
+          return {
+            works,
+            exchangeRate,
+            filters,
+            platformList,
+            filteredWorks,
+            getPlatformBadge,
+            getEventTypeBadge,
+            calculator,
+            openCalculator,
+            calcOriginalTotal,
+            calcDiscountedPay,
+            calcCashback,
+            calcNetCoinCost,
+            calcCnyCost,
+            handleImportExcel,
+            downloadTemplate
+          };
+        }
+      }).mount('#app');
+    });
+  </script>
 </body>
 </html>
