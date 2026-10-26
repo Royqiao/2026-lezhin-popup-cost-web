@@ -24,39 +24,50 @@
     <header class="mb-8 text-center sm:text-left sm:flex sm:justify-between sm:items-end border-b border-slate-200 pb-6">
       <div>
         <div class="inline-flex items-center gap-2 px-3 py-1 bg-rose-50 text-rose-600 rounded-full text-xs font-semibold mb-2">
-          <span>✨ 韩漫大促历史数据 </span>
+          <span>✨ 韩漫画大促历史数据 </span>
         </div>
         <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">韩漫历史促销活动 & 抄底测算器</h1>
-        <p class="text-slate-500 text-sm mt-1">涵盖 Lezhin / Bomtoon / Ridibooks / Mr.Blue/Lezhin US  抄底节点</p>
+        <p class="text-slate-500 text-sm mt-1">涵盖 Lezhin KR/Bomtoon/Ridibooks/Mr.Blue/Lezhin US </p>
       </div>
 
-      <!-- 汇率设置与权限管理栏 (支持韩元与美元双轨输入) -->
+      <!-- 汇率设置与权限管理栏 -->
       <div class="mt-4 sm:mt-0 flex flex-col sm:items-end gap-2.5">
         
-        <div class="flex flex-wrap sm:flex-nowrap gap-2 text-xs">
-          <!-- 韩元结算区 (KRW) -->
-          <div class="bg-white p-2 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3">
-            <span class="font-bold text-slate-500 text-[11px] bg-slate-100 px-1 rounded">韩元区</span>
+        <!-- 各平台专属换算卡片 -->
+        <div class="flex flex-wrap sm:flex-nowrap gap-1.5 text-xs">
+          <!-- Lezhin KR -->
+          <div class="bg-white p-1.5 px-2 rounded-xl border border-red-200 shadow-sm flex items-center gap-1.5">
+            <span class="font-bold text-red-700 text-[10px] bg-red-50 px-1 py-0.5 rounded">Lezhin KR</span>
             <div>
-              <span class="text-slate-400 block text-[9px]">1币≈韩元</span>
-              <input v-model.number="exchangeRate.coinToKrw" type="number" class="w-12 font-bold border-b border-slate-300 focus:outline-none" /> ₩
-            </div>
-            <div class="border-l pl-2">
-              <span class="text-slate-400 block text-[9px]">1000₩≈元</span>
-              <input v-model.number="exchangeRate.krwToCny" type="number" step="0.1" class="w-10 font-bold border-b border-slate-300 focus:outline-none" /> ¥
+              <span class="text-slate-400 block text-[8px]">per 1c</span>
+              <input v-model.number="rates.lezhin_kr" type="number" step="0.01" class="w-10 font-bold border-b border-red-300 focus:outline-none text-red-600" /> ¥
             </div>
           </div>
 
-          <!-- 美元结算区 (USD - Lezhin US 专属) -->
-          <div class="bg-white p-2 rounded-xl border border-purple-200 shadow-sm flex items-center gap-3">
-            <span class="font-bold text-purple-600 text-[11px] bg-purple-50 px-1 rounded">美元区(US)</span>
+          <!-- Bomtoon -->
+          <div class="bg-white p-1.5 px-2 rounded-xl border border-rose-200 shadow-sm flex items-center gap-1.5">
+            <span class="font-bold text-rose-700 text-[10px] bg-rose-50 px-1 py-0.5 rounded">Bomtoon</span>
             <div>
-              <span class="text-slate-400 block text-[9px]">1 US币≈美元</span>
-              <input v-model.number="exchangeRate.usCoinToUsd" type="number" step="0.005" class="w-14 font-bold border-b border-purple-300 focus:outline-none" /> $
+              <span class="text-slate-400 block text-[8px]">per 1c</span>
+              <input v-model.number="rates.bomtoon" type="number" step="0.01" class="w-10 font-bold border-b border-rose-300 focus:outline-none text-rose-600" /> ¥
             </div>
-            <div class="border-l pl-2">
-              <span class="text-slate-400 block text-[9px]">$1≈元</span>
-              <input v-model.number="exchangeRate.usdToCny" type="number" step="0.1" class="w-10 font-bold border-b border-purple-300 focus:outline-none" /> ¥
+          </div>
+
+          <!-- Ridibooks & Mr.Blue -->
+          <div class="bg-white p-1.5 px-2 rounded-xl border border-blue-200 shadow-sm flex items-center gap-1.5">
+            <span class="font-bold text-blue-700 text-[10px] bg-blue-50 px-1 py-0.5 rounded">Ridi/Mr.Blue</span>
+            <div>
+              <span class="text-slate-400 block text-[8px]">100₩ ≈ 元</span>
+              <input v-model.number="rates.korean_won_100w" type="number" step="0.01" class="w-10 font-bold border-b border-blue-300 focus:outline-none text-blue-600" /> ¥
+            </div>
+          </div>
+
+          <!-- Lezhin US -->
+          <div class="bg-white p-1.5 px-2 rounded-xl border border-purple-200 shadow-sm flex items-center gap-1.5">
+            <span class="font-bold text-purple-700 text-[10px] bg-purple-50 px-1 py-0.5 rounded">Lezhin US</span>
+            <div>
+              <span class="text-slate-400 block text-[8px]">per 30c</span>
+              <input v-model.number="rates.lezhin_us_30c" type="number" step="0.1" class="w-10 font-bold border-b border-purple-300 focus:outline-none text-purple-600" /> ¥
             </div>
           </div>
         </div>
@@ -104,10 +115,10 @@
             <option value="">全部优惠力度 (All Types)</option>
             <option value="100% Coinback">100% 全额返币</option>
             <option value="100% Payback">100% 积分返还</option>
-            <option value="1c 展">1 Coin (1c 展)</option>
+            <option value="1c 展">1 Coin (1c 特惠)</option>
             <option value="2c 展">2 Coin (2c 特惠)</option>
-            <option value="50% 折扣">50% 半价/租借折减</option>
-            <option value="积分返现">大额返现 (Cashback)</option>
+            <option value="50% 折扣">50% 半价</option>
+            <option value="积分返现">积分返现 (Pointback)</option>
           </select>
         </div>
       </div>
@@ -155,13 +166,13 @@
       </div>
     </main>
 
-    <!-- 弹窗计算器 (已适配美元与韩元双轨运算) -->
+    <!-- 弹窗计算器 -->
     <div v-if="calculator.visible && calculator.work" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl border">
         <div class="flex justify-between items-start border-b pb-3">
           <div>
-            <div class="text-xs font-semibold" :class="isUsdPlatform ? 'text-purple-600' : 'text-indigo-600'">
-              {{ calculator.work.platform }} ({{ isUsdPlatform ? '美元结算' : '韩元结算' }})
+            <div class="text-xs font-semibold text-indigo-600">
+              {{ calculator.work.platform }} (换算基准：{{ getPlatformRateDesc }})
             </div>
             <h3 class="text-lg font-bold text-slate-900">{{ calculator.work.title_zh }}</h3>
           </div>
@@ -194,7 +205,7 @@
               <div>
                 <span class="text-xs text-amber-300 block font-bold">折合实际成本 (单话半价分摊)：</span>
                 <span class="text-[10px] text-slate-300">
-                  折合法币 ≈ {{ calcForeignCost }} · 折合人民币 ≈ ¥{{ calcCnyCost }} 元
+                   折合人民币 ≈ ¥{{ calcCnyCost }} 元
                 </span>
               </div>
               <div class="text-right">
@@ -218,7 +229,7 @@
               <div>
                 <span class="text-xs text-slate-400 block">实际净消耗成本：</span>
                 <span class="text-[10px] text-slate-300">
-                  折合法币 ≈ {{ calcForeignCost }} · 折合人民币 ≈ ¥{{ calcCnyCost }} 元
+                  折合人民币 ≈ ¥{{ calcCnyCost }} 元
                 </span>
               </div>
               <div class="text-right">
@@ -260,25 +271,6 @@
         }]
       },
       {
-        id: "lus-01",
-        title_ko: "Pearl Boy",
-        title_zh: "珍珠少年 (Lezhin US)",
-        platform: "Lezhin US",
-        currency: "US Coin",
-        genre: "BL / 现代",
-        original_coin_per_ep: 30,
-        total_episodes: 90,
-        history: [{
-          event_name: "2026 Summer Sale 50% Off Bundle",
-          event_type: "50% 折扣",
-          date: "2026-07-15",
-          pay_coin: 15,
-          cashback_ratio: 0.0,
-          target_episodes: "全篇打包",
-          rule_desc: "全套打包享受半价优惠 (每话仅需15 US Coin)"
-        }]
-      },
-      {
         id: "bt-01",
         title_ko: "창 너머 창",
         title_zh: "窗外之窗",
@@ -314,6 +306,44 @@
           cashback_ratio: 1.0,
           target_episodes: "单行本第 1~4 卷",
           rule_desc: "全额返还等值 Ridi 积分(折合半价成本)"
+        }]
+      },
+      {
+        id: "mb-01",
+        title_ko: "겨울 지나 벚꽃",
+        title_zh: "冬日后的樱花",
+        platform: "Mr.Blue",
+        currency: "Blue Money",
+        genre: "BL / 纯爱",
+        original_coin_per_ep: 300,
+        total_episodes: 120,
+        history: [{
+          event_name: "창립기념 BLoop 50% 페이백",
+          event_type: "积分返现",
+          date: "2026-06-18",
+          pay_coin: 300,
+          cashback_ratio: 0.5,
+          target_episodes: "全季打包",
+          rule_desc: "消费返还 50% Blue Mileage"
+        }]
+      },
+      {
+        id: "lus-01",
+        title_ko: "Pearl Boy",
+        title_zh: "珍珠少年 (Lezhin US)",
+        platform: "Lezhin US",
+        currency: "US Coin",
+        genre: "BL / 现代",
+        original_coin_per_ep: 30,
+        total_episodes: 90,
+        history: [{
+          event_name: "2026 Summer Sale 50% Off Bundle",
+          event_type: "50% 折扣",
+          date: "2026-07-15",
+          pay_coin: 15,
+          cashback_ratio: 0.0,
+          target_episodes: "全篇打包",
+          rule_desc: "全套打包享受半价优惠 (每话仅需15 US Coin)"
         }]
       }
     ];
@@ -367,14 +397,12 @@
 
           var works = ref(DEFAULT_DATA);
 
-          // 【双轨汇率引擎配置】
-          var exchangeRate = ref({
-            // 韩元区（Lezhin KR, Bomtoon, Mr.Blue）
-            coinToKrw: 120,      // 1 韩币 ≈ 120 韩元
-            krwToCny: 5.3,       // 1000 韩元 ≈ 5.3 人民币
-            // 美元区（Lezhin US 专属）
-            usCoinToUsd: 0.025,  // 1 US Coin ≈ $0.025 美元 (即 $1 ≈ 40币)
-            usdToCny: 7.2        // 1 美元 ≈ 7.2 人民币
+          // 【各平台专属定制换算单价】
+          var rates = ref({
+            lezhin_kr: 0.44,       // Lezhin KR: per 1c = 0.44 元
+            bomtoon: 0.41,         // Bomtoon: per 1c = 0.41 元
+            korean_won_100w: 0.44, // Ridibooks & Mr.Blue: 100₩ = 0.44 元
+            lezhin_us_30c: 2.30    // Lezhin US: per 30c = 2.30 元
           });
 
           var filters = ref({ query: '', platform: '', eventType: '' });
@@ -452,14 +480,6 @@
             };
           };
 
-          // 核心判断：是否属于美元结算平台（Lezhin US）
-          var isUsdPlatform = computed(function() {
-            return calculator.value.work && (
-              calculator.value.work.platform === 'Lezhin US' ||
-              calculator.value.work.currency === 'US Coin'
-            );
-          });
-
           // 核心判断：是否为 100% 全额返还活动
           var isPayback100 = computed(function() {
             if (!calculator.value.event) return false;
@@ -492,38 +512,39 @@
             return Math.max(0, calcDiscountedPay.value - calcCashback.value);
           });
 
-          // 外币原币种金额估算（区分美元与韩元）
-          var calcForeignCost = computed(function() {
-            if (!calculator.value.work) return '0';
-            // 美元区 (Lezhin US)
-            if (isUsdPlatform.value) {
-              var usd = calcNetCoinCost.value * exchangeRate.value.usCoinToUsd;
-              return '$' + usd.toFixed(2) + ' 美元';
-            }
-            // Ridibooks 平台本身就以韩元为单位
-            if (calculator.value.work.platform === 'Ridibooks') {
-              return Math.round(calcNetCoinCost.value).toLocaleString() + ' ₩ 韩元';
-            }
-            // 韩元区普通代币
-            var krw = calcNetCoinCost.value * exchangeRate.value.coinToKrw;
-            return Math.round(krw).toLocaleString() + ' ₩ 韩元';
+          // 当前选中作品所属平台的换算描述
+          var getPlatformRateDesc = computed(function() {
+            if (!calculator.value.work) return '';
+            var p = calculator.value.work.platform;
+            if (p === 'Lezhin KR') return 'per 1c = ' + rates.value.lezhin_kr + '¥';
+            if (p === 'Bomtoon') return 'per 1c = ' + rates.value.bomtoon + '¥';
+            if (p === 'Lezhin US') return 'per 30c = ' + rates.value.lezhin_us_30c + '¥';
+            return '100₩ = ' + rates.value.korean_won_100w + '¥';
           });
 
-          // 最终折合人民币估算 (精准区分美元汇率与韩元汇率)
+          // 人民币成本估算 (按指定平台单价精准核算)
           var calcCnyCost = computed(function() {
             if (!calculator.value.work) return '0.00';
-            // 1. 如果是 Lezhin US：代币 -> 美元 -> 人民币
-            if (isUsdPlatform.value) {
-              var usd = calcNetCoinCost.value * exchangeRate.value.usCoinToUsd;
-              return (usd * exchangeRate.value.usdToCny).toFixed(2);
+            var p = calculator.value.work.platform;
+            var coin = calcNetCoinCost.value;
+
+            // 1. Lezhin KR: per 1c = 0.44
+            if (p === 'Lezhin KR') {
+              return (coin * rates.value.lezhin_kr).toFixed(2);
             }
-            // 2. 如果是 Ridibooks：韩元 -> 人民币
-            if (calculator.value.work.platform === 'Ridibooks') {
-              return ((calcNetCoinCost.value / 1000) * exchangeRate.value.krwToCny).toFixed(2);
+
+            // 2. Bomtoon: per 1c = 0.41
+            if (p === 'Bomtoon') {
+              return (coin * rates.value.bomtoon).toFixed(2);
             }
-            // 3. 韩版平台：代币 -> 韩元 -> 人民币
-            var krw = calcNetCoinCost.value * exchangeRate.value.coinToKrw;
-            return ((krw / 1000) * exchangeRate.value.krwToCny).toFixed(2);
+
+            // 3. Lezhin US: per 30c = 2.30 (每币 = 2.30 / 30)
+            if (p === 'Lezhin US') {
+              return (coin * (rates.value.lezhin_us_30c / 30.0)).toFixed(2);
+            }
+
+            // 4. Ridibooks & Mr.Blue: 100₩ = 0.44 (代币即韩元，每100韩元 = 0.44)
+            return ((coin / 100.0) * rates.value.korean_won_100w).toFixed(2);
           });
 
           // Excel 导入与解析
@@ -562,10 +583,15 @@
                   var titleKo = row['作品韩文名'] || titleZh;
                   var key = platform + '_' + titleKo;
 
-                  // 自动适配货币种类
                   var currency = 'Coin';
                   if (platform === 'Lezhin US') currency = 'US Coin';
                   else if (platform === 'Ridibooks') currency = 'Point/Cash';
+                  else if (platform === 'Mr.Blue') currency = 'Blue Money';
+
+                  var defOriginal = 3;
+                  if (platform === 'Lezhin US') defOriginal = 30;
+                  else if (platform === 'Ridibooks') defOriginal = 500;
+                  else if (platform === 'Mr.Blue') defOriginal = 300;
 
                   if (!workMap.has(key)) {
                     workMap.set(key, {
@@ -575,7 +601,7 @@
                       platform: String(platform),
                       currency: currency,
                       genre: row['类型'] || 'BL',
-                      original_coin_per_ep: Number(row['单话原价']) || (platform === 'Lezhin US' ? 30 : 3),
+                      original_coin_per_ep: Number(row['单话原价']) || defOriginal,
                       total_episodes: Number(row['总话数']) || 10,
                       history: []
                     });
@@ -622,6 +648,36 @@
                 "规则备注": "全额返还Bonus币(单话折合半价)"
               },
               {
+                "平台": "Bomtoon",
+                "作品中文名": "窗外之窗",
+                "作品韩文名": "창 너머 창",
+                "类型": "BL",
+                "单话原价": 3,
+                "总话数": 65,
+                "活动时间": "2026-01-01",
+                "活动名称": "BAAM Festa 1c展",
+                "优惠类型": "1c 展",
+                "活动单价": 1,
+                "返还比例": 0.0,
+                "适用范围": "全篇全话",
+                "规则备注": "Bomtoon每币0.41元"
+              },
+              {
+                "平台": "Ridibooks",
+                "作品中文名": "偿还 (PAYBACK)",
+                "作品韩文名": "페이백",
+                "类型": "BL",
+                "单话原价": 500,
+                "总话数": 85,
+                "活动时间": "2026-02-15",
+                "活动名称": "春节100%积分返还",
+                "优惠类型": "100% Payback",
+                "活动单价": 500,
+                "返还比例": 1.0,
+                "适用范围": "单行本全篇",
+                "规则备注": "100₩=0.44元折算"
+              },
+              {
                 "平台": "Lezhin US",
                 "作品中文名": "珍珠少年",
                 "作品韩文名": "Pearl Boy",
@@ -634,7 +690,7 @@
                 "活动单价": 15,
                 "返还比例": 0.0,
                 "适用范围": "全本打包",
-                "规则备注": "美元结算·半价优惠"
+                "规则备注": "每30币=2.30元"
               }
             ];
             var ws = XLSX.utils.json_to_sheet(template);
@@ -645,12 +701,11 @@
 
           return {
             isAdmin: isAdmin,
-            isUsdPlatform: isUsdPlatform,
             isPayback100: isPayback100,
             loginAdmin: loginAdmin,
             logoutAdmin: logoutAdmin,
             works: works,
-            exchangeRate: exchangeRate,
+            rates: rates,
             filters: filters,
             platformList: platformList,
             filteredWorks: filteredWorks,
@@ -662,7 +717,7 @@
             calcDiscountedPay: calcDiscountedPay,
             calcCashback: calcCashback,
             calcNetCoinCost: calcNetCoinCost,
-            calcForeignCost: calcForeignCost,
+            getPlatformRateDesc: getPlatformRateDesc,
             calcCnyCost: calcCnyCost,
             handleImportExcel: handleImportExcel,
             downloadTemplate: downloadTemplate,
