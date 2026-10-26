@@ -25,7 +25,7 @@
     <header class="mb-8 text-center sm:text-left sm:flex sm:justify-between sm:items-end border-b border-slate-200 pb-6">
       <div>
         <div class="inline-flex items-center gap-2 px-3 py-1 bg-rose-50 text-rose-600 rounded-full text-xs font-semibold mb-2">
-          <span>✨ 2026 韩国漫画大促历史数据库 (在线测算)</span>
+          <span>✨ 2026 韩国漫画大促历史数据库 (全网云端同步版)</span>
         </div>
         <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">韩漫历史促销档案 & 抄底测算器</h1>
         <p class="text-slate-500 text-sm mt-1">涵盖 Lezhin / Bomtoon / Ridibooks / Mr.Blue 历来 100% 返还、1c 展与半价节点</p>
@@ -44,11 +44,11 @@
           </div>
         </div>
 
-        <!-- 管理员状态：已登录时展示完整导入/导出管理工具 -->
+        <!-- 管理员状态：已登录时展示导入/导出与退出工具 -->
         <div v-if="isAdmin" class="flex items-center gap-2 bg-emerald-50 border border-emerald-200 p-1.5 rounded-xl">
           <input type="file" ref="fileInput" @change="handleImportExcel" accept=".xlsx,.xls,.csv" class="hidden" />
           <button @click="$refs.fileInput.click()" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm transition">
-            📥 导入 Excel 表格
+            📥 导入 Excel 并全网发布
           </button>
           <button @click="downloadTemplate" class="px-3 py-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold transition">
             📄 下载模板
@@ -58,7 +58,7 @@
           </button>
         </div>
 
-        <!-- 普通访客状态：仅显示一个低调的小锁入口 -->
+        <!-- 普通访客状态：仅显示一个小锁入口 -->
         <div v-else class="flex justify-end">
           <button @click="loginAdmin" title="管理员管理入口" class="text-xs text-slate-400 hover:text-slate-700 transition flex items-center gap-1">
             <span>🔒 管理员入口</span>
@@ -94,8 +94,13 @@
       </div>
     </section>
 
+    <!-- 加载中提示 -->
+    <div v-if="isLoading" class="text-center py-10 text-slate-400 text-sm">
+      ⏳ 正在从云端拉取最新全网大促数据...
+    </div>
+
     <!-- 作品列表展示 -->
-    <main class="space-y-4">
+    <main v-else class="space-y-4">
       <div v-for="work in filteredWorks" :key="work.id" class="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
         <div class="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -177,9 +182,15 @@
   </div>
   {% endraw %}
 
-  <!-- 核心交互逻辑 -->
+  <!-- 核心逻辑脚本 -->
   <script>
-    var DEFAULT_DATA = [
+    // ================= 请配置你的云端公共数据池 (JSONBin.io) =================
+    // 所有人打开网页都会从这个 Bin ID 自动拉取数据；你导入时会自动推送到这里
+    var CLOUD_BIN_ID = '6adecdddffd5d160538bba95';           // 例如: '671c89f5ad19ca34f8bf0000'
+    var CLOUD_API_KEY = '$2a$10$5Ia0pce6a4OT2ph1tlRqa.pxXxE.D26VqEAWm3WlrgfTdFwLX2yFS';      // 例如: '$2a$10$xxxxxxxxxxxxxxxxxxxx'
+    // =======================================================================
+
+    var DEFAULT_FALLBACK_DATA = [
       {
         id: "lz-01",
         title_ko: "시시포스의 개들",
@@ -217,44 +228,6 @@
           target_episodes: "前 30 话",
           rule_desc: "前30话降至2c，消费满50币额外返30%"
         }]
-      },
-      {
-        id: "bt-01",
-        title_ko: "창 너머 창",
-        title_zh: "窗外之窗",
-        platform: "Bomtoon",
-        currency: "Coin",
-        genre: "BL / 经典",
-        original_coin_per_ep: 3,
-        total_episodes: 65,
-        history: [{
-          event_name: "2026 BAAM Festa 신년 1코인전",
-          event_type: "1c 展",
-          date: "2026-01-01",
-          pay_coin: 1,
-          cashback_ratio: 0.0,
-          target_episodes: "全篇全话",
-          rule_desc: "全篇统一降至 1 Coin/话"
-        }]
-      },
-      {
-        id: "rd-01",
-        title_ko: "페이백 (PAYBACK)",
-        title_zh: "偿还 (PAYBACK)",
-        platform: "Ridibooks",
-        currency: "Point/Cash",
-        genre: "BL / 演艺圈",
-        original_coin_per_ep: 500,
-        total_episodes: 85,
-        history: [{
-          event_name: "2026 설 연휴 100% 포인트백",
-          event_type: "100% Payback",
-          date: "2026-02-15",
-          pay_coin: 500,
-          cashback_ratio: 1.0,
-          target_episodes: "单行本第 1~4 卷",
-          rule_desc: "全额返还等值 Ridi 积分"
-        }]
       }
     ];
 
@@ -271,19 +244,17 @@
 
       createApp({
         setup: function() {
-          // ================= 1. 管理员密钥与权限控制 =================
-          var ADMIN_PASSWORD = 'admin2026'; // 可随时修改为你自己的专属密码
+          var ADMIN_PASSWORD = 'admin2026';
           var isAdmin = ref(false);
+          var isLoading = ref(true);
 
           var checkAdminStatus = function() {
             var urlParams = new URLSearchParams(window.location.search);
-            // 方式 A：如果网址后带了 ?key=admin2026，自动激活管理员
             if (urlParams.get('key') === ADMIN_PASSWORD) {
               isAdmin.value = true;
               localStorage.setItem('is_comic_admin', 'true');
               return;
             }
-            // 方式 B：检查本地浏览器是否已经解锁过
             if (localStorage.getItem('is_comic_admin') === 'true') {
               isAdmin.value = true;
             }
@@ -294,7 +265,7 @@
             if (pwd === ADMIN_PASSWORD) {
               isAdmin.value = true;
               localStorage.setItem('is_comic_admin', 'true');
-              alert("认证成功！已开启数据导入与模板管理权限。");
+              alert("认证成功！已开启数据全网发布权限。");
             } else if (pwd !== null) {
               alert("密钥错误，无权管理！");
             }
@@ -307,30 +278,49 @@
           };
 
           checkAdminStatus();
-          // =========================================================
 
-          var works = ref(DEFAULT_DATA);
+          var works = ref([]);
           var exchangeRate = ref({ coinToKrw: 120, krwToCny: 5.3 });
           var filters = ref({ query: '', platform: '', eventType: '' });
           var platformList = ['Lezhin KR', 'Bomtoon', 'Ridibooks', 'Mr.Blue', 'Lezhin US'];
 
-          // 自动读取后端数据
-          var fetchProducts = async function() {
+          // 核心：全网访客打开页面时，统一从云端公共数据池拉取
+          var fetchCloudProducts = async function() {
+            isLoading.value = true;
+            // 如果未配置云端池，先读本地备份
+            if (!CLOUD_BIN_ID || CLOUD_BIN_ID === '填入你的BIN_ID') {
+              var local = localStorage.getItem('custom_comic_works');
+              works.value = local ? JSON.parse(local) : DEFAULT_FALLBACK_DATA;
+              isLoading.value = false;
+              return;
+            }
+
             try {
-              var res = await fetch('/api/products');
+              var res = await fetch('https://api.jsonbin.io/v3/b/' + CLOUD_BIN_ID + '/latest', {
+                headers: { 'X-Master-Key': CLOUD_API_KEY }
+              });
               if (res.ok) {
-                var data = await res.json();
-                if (Array.isArray(data) && data.length > 0) {
-                  works.value = data;
+                var json = await res.json();
+                if (Array.isArray(json.record) && json.record.length > 0) {
+                  works.value = json.record;
+                  localStorage.setItem('custom_comic_works', JSON.stringify(json.record));
+                } else {
+                  works.value = DEFAULT_FALLBACK_DATA;
                 }
+              } else {
+                throw new Error("云端拉取失败");
               }
-            } catch (err) {
-              console.log('使用内置数据渲染');
+            } catch(e) {
+              console.log("使用本地容灾数据");
+              var local = localStorage.getItem('custom_comic_works');
+              works.value = local ? JSON.parse(local) : DEFAULT_FALLBACK_DATA;
+            } finally {
+              isLoading.value = false;
             }
           };
 
           onMounted(function() {
-            fetchProducts();
+            fetchCloudProducts();
           });
 
           var filteredWorks = computed(function() {
@@ -406,7 +396,7 @@
             return ((krw / 1000) * exchangeRate.value.krwToCny).toFixed(2);
           });
 
-          // Excel 导入与解析（支持 46317 转具体年月日，且仅限管理员上传保存）
+          // 核心：导入 Excel 并一键覆盖推送到全网云端数据池
           var handleImportExcel = function(e) {
             if (!isAdmin.value) {
               alert("无权操作！请先登录管理员。");
@@ -469,25 +459,31 @@
 
                 var importedWorks = Array.from(workMap.values());
                 works.value = importedWorks;
+                localStorage.setItem('custom_comic_works', JSON.stringify(importedWorks));
 
-                // 携带管理员密钥同步给后端保存
-                var saveRes = await fetch('/api/products/batch', {
-                  method: 'POST',
-                  headers: { 
-                    'Content-Type': 'application/json',
-                    'X-Admin-Key': ADMIN_PASSWORD 
-                  },
-                  body: JSON.stringify(importedWorks)
-                });
+                // 如果配置了云端数据池，自动 PUT 更新云端数据
+                if (CLOUD_BIN_ID && CLOUD_BIN_ID !== '填入你的BIN_ID') {
+                  var putRes = await fetch('https://api.jsonbin.io/v3/b/' + CLOUD_BIN_ID, {
+                    method: 'PUT',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'X-Master-Key': CLOUD_API_KEY
+                    },
+                    body: JSON.stringify(importedWorks)
+                  });
 
-                if (saveRes.ok) {
-                  alert('成功导入 ' + importedWorks.length + ' 部作品并已保存到服务器！');
+                  if (putRes.ok) {
+                    alert('🎉 成功导入 ' + importedWorks.length + ' 部作品并已全网发布！现在全世界任何人打开链接都能看到最新数据！');
+                  } else {
+                    alert('数据已保存在本地，但云端推送被拒绝，请检查 BIN_ID 和 API_KEY 配置！');
+                  }
                 } else {
-                  alert('前端导入成功，但后端同步被拒绝（可能密钥错误）！');
+                  alert('数据已保存在当前浏览器，但未配置云端池，其他人暂时无法同步查看。');
                 }
+
                 e.target.value = '';
               } catch (err) {
-                alert('解析 Excel 失败，请检查格式');
+                alert('解析 Excel 失败，请检查文件格式！');
               }
             };
             reader.readAsArrayBuffer(file);
@@ -517,6 +513,7 @@
 
           return {
             isAdmin: isAdmin,
+            isLoading: isLoading,
             loginAdmin: loginAdmin,
             logoutAdmin: logoutAdmin,
             works: works,

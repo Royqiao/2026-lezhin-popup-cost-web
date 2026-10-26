@@ -4,33 +4,34 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>韩漫作品历史促销档案 & 抄底测算器</title>
-  <!-- Tailwind CSS 高速 CDN -->
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- SheetJS CDN (支持 Excel 导入) -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <!-- Vue 3 国内高速加速 CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/vue@3.3.4/dist/vue.global.prod.js"></script>
-  <style>
-    [v-cloak] { display: none !important; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-  </style>
+  <!-- SheetJS (Excel解析库) -->
+  <script src="https://registry.npmmirror.com/xlsx/0.18.5/files/dist/xlsx.full.min.js"></script>
+  <!-- 阿里 NPM 镜像 Vue 3 -->
+  <script src="https://registry.npmmirror.com/vue/3.3.4/files/dist/vue.global.prod.js"></script>
+  <script>
+    if (typeof Vue === 'undefined') {
+      document.write('<script src="https://cdn.bootcdn.net/ajax/libs/vue/3.3.4/vue.global.prod.min.js"><\/script>');
+    }
+  </script>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen">
 
   {% raw %}
-  <div id="app" v-cloak class="max-w-6xl mx-auto px-4 py-8">
+  <div id="app" class="max-w-6xl mx-auto px-4 py-8">
     
     <!-- 顶部 Header -->
     <header class="mb-8 text-center sm:text-left sm:flex sm:justify-between sm:items-end border-b border-slate-200 pb-6">
       <div>
         <div class="inline-flex items-center gap-2 px-3 py-1 bg-rose-50 text-rose-600 rounded-full text-xs font-semibold mb-2">
-          <span>✨ 2026 韩国漫画大促历史数据库 (在线测算)</span>
+          <span>✨ 2026 韩国漫画大促历史数据库 (全网云端同步版)</span>
         </div>
         <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">韩漫历史促销档案 & 抄底测算器</h1>
         <p class="text-slate-500 text-sm mt-1">涵盖 Lezhin / Bomtoon / Ridibooks / Mr.Blue 历来 100% 返还、1c 展与半价节点</p>
       </div>
 
-      <!-- 汇率设置与导入 -->
+      <!-- 汇率设置与权限管理栏 -->
       <div class="mt-4 sm:mt-0 flex flex-col sm:items-end gap-3">
         <div class="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm text-xs flex items-center gap-4">
           <div>
@@ -43,13 +44,24 @@
           </div>
         </div>
 
-        <div class="flex items-center gap-2">
+        <!-- 管理员状态：已登录时展示导入/导出与退出工具 -->
+        <div v-if="isAdmin" class="flex items-center gap-2 bg-emerald-50 border border-emerald-200 p-1.5 rounded-xl">
           <input type="file" ref="fileInput" @change="handleImportExcel" accept=".xlsx,.xls,.csv" class="hidden" />
-          <button @click="$refs.fileInput.click()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm transition">
-            📥 导入 Excel 表格
+          <button @click="$refs.fileInput.click()" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm transition">
+            📥 导入 Excel 并全网发布
           </button>
-          <button @click="downloadTemplate" class="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold transition">
+          <button @click="downloadTemplate" class="px-3 py-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold transition">
             📄 下载模板
+          </button>
+          <button @click="logoutAdmin" class="text-xs text-rose-500 hover:underline px-1 font-medium">
+            退出管理
+          </button>
+        </div>
+
+        <!-- 普通访客状态：仅显示一个小锁入口 -->
+        <div v-else class="flex justify-end">
+          <button @click="loginAdmin" title="管理员管理入口" class="text-xs text-slate-400 hover:text-slate-700 transition flex items-center gap-1">
+            <span>🔒 管理员入口</span>
           </button>
         </div>
       </div>
@@ -82,8 +94,13 @@
       </div>
     </section>
 
+    <!-- 加载中提示 -->
+    <div v-if="isLoading" class="text-center py-10 text-slate-400 text-sm">
+      ⏳ 正在从云端拉取最新全网大促数据...
+    </div>
+
     <!-- 作品列表展示 -->
-    <main class="space-y-4">
+    <main v-else class="space-y-4">
       <div v-for="work in filteredWorks" :key="work.id" class="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
         <div class="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -100,17 +117,17 @@
           </div>
         </div>
 
-        <!-- 历史促销记录 -->
+        <!-- 历史促销记录时间线 -->
         <div class="border-t border-slate-100 bg-slate-50/50 p-4 sm:p-5">
           <div class="grid grid-cols-1 gap-2.5">
             <div v-for="(event, idx) in work.history" :key="idx" class="bg-white border border-slate-200/80 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-sm">
               <div class="space-y-1">
                 <div class="flex items-center gap-2">
-                  <span class="font-mono text-slate-500 font-bold bg-slate-100 px-1.5 py-0.5 rounded">{{ event.date }}</span>
+                  <span class="font-mono text-slate-500 font-bold bg-slate-100 px-2 py-0.5 rounded">{{ event.date }}</span>
                   <span class="font-semibold text-slate-900 text-sm">{{ event.event_name }}</span>
                   <span class="px-2 py-0.5 rounded text-[11px] font-bold" :class="getEventTypeBadge(event.event_type)">{{ event.event_type }}</span>
                 </div>
-                <div class="text-slate-500">🎯 适用：{{ event.target_episodes }} · 规则：{{ event.rule_desc }}</div>
+                <div class="text-slate-500">🎯 适用范围：{{ event.target_episodes }} · 规则：{{ event.rule_desc }}</div>
               </div>
               <button @click="openCalculator(work, event)" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white rounded-lg font-semibold transition">
                 🧮 测算成本
@@ -121,8 +138,8 @@
       </div>
     </main>
 
-    <!-- 弹窗计算器 (默认隐藏，点击测算按钮才会展开) -->
-    <div v-if="calculator.visible" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <!-- 弹窗计算器 -->
+    <div v-if="calculator.visible && calculator.work" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl border">
         <div class="flex justify-between items-start border-b pb-3">
           <div>
@@ -165,159 +182,360 @@
   </div>
   {% endraw %}
 
-  <!-- 内嵌 Vue 核心逻辑（无需额外加载外部 js 文件） -->
+  <!-- 核心逻辑脚本 -->
   <script>
-    const { createApp, ref, computed, onMounted } = Vue;
+    // ================= 请配置你的云端公共数据池 (JSONBin.io) =================
+    // 所有人打开网页都会从这个 Bin ID 自动拉取数据；你导入时会自动推送到这里
+    var CLOUD_BIN_ID = '6adecdddffd5d160538bba95';           // 例如: '671c89f5ad19ca34f8bf0000'
+    var CLOUD_API_KEY = '$2a$10$5Ia0pce6a4OT2ph1tlRqa.pxXxE.D26VqEAWm3WlrgfTdFwLX2yFS';      // 例如: '$2a$10$xxxxxxxxxxxxxxxxxxxx'
+    // =======================================================================
 
-    createApp({
-      setup() {
-        const works = ref([]);
-        const exchangeRate = ref({ coinToKrw: 120, krwToCny: 5.3 });
-        const filters = ref({ query: '', platform: '', eventType: '' });
-        const platformList = ['Lezhin KR', 'Bomtoon', 'Ridibooks', 'Mr.Blue', 'Lezhin US'];
+    var DEFAULT_FALLBACK_DATA = [
+      {
+        id: "lz-01",
+        title_ko: "시시포스의 개들",
+        title_zh: "西西弗斯的狗",
+        platform: "Lezhin KR",
+        currency: "Coin",
+        genre: "BL / 剧情",
+        original_coin_per_ep: 3,
+        total_episodes: 45,
+        history: [{
+          event_name: "2026 설맞이 100% 코인백 (新春全额返币)",
+          event_type: "100% Coinback",
+          date: "2026-02-12",
+          pay_coin: 3,
+          cashback_ratio: 1.0,
+          target_episodes: "全篇全话",
+          rule_desc: "全本购买消耗代币100%返还为Bonus币"
+        }]
+      },
+      {
+        id: "lz-02",
+        title_ko: "야화첩",
+        title_zh: "夜画帐",
+        platform: "Lezhin KR",
+        currency: "Coin",
+        genre: "BL / 古风台柱",
+        original_coin_per_ep: 3,
+        total_episodes: 130,
+        history: [{
+          event_name: "2026 추석 다다익선 대기획 (中秋多多益善展)",
+          event_type: "2c 展",
+          date: "2026-09-24",
+          pay_coin: 2,
+          cashback_ratio: 0.3,
+          target_episodes: "前 30 话",
+          rule_desc: "前30话降至2c，消费满50币额外返30%"
+        }]
+      }
+    ];
 
-        // 从后端读取数据
-        const fetchProducts = async () => {
-          try {
-            const res = await fetch('/api/products');
-            works.value = await res.json();
-          } catch (err) {
-            console.error('加载数据失败', err);
-          }
-        };
+    window.addEventListener('DOMContentLoaded', function() {
+      if (typeof Vue === 'undefined') {
+        alert("网络加载 Vue 库超时，请检查网络或刷新页面重试！");
+        return;
+      }
 
-        onMounted(() => {
-          fetchProducts();
-        });
+      var createApp = Vue.createApp;
+      var ref = Vue.ref;
+      var computed = Vue.computed;
+      var onMounted = Vue.onMounted;
 
-        // 筛选
-        const filteredWorks = computed(() => {
-          return works.value.filter(work => {
-            const q = filters.value.query.trim().toLowerCase();
-            const matchQuery = !q ||
-              work.title_ko.toLowerCase().includes(q) ||
-              work.title_zh.toLowerCase().includes(q) ||
-              work.history.some(h => h.event_name.toLowerCase().includes(q));
+      createApp({
+        setup: function() {
+          var ADMIN_PASSWORD = 'admin2026';
+          var isAdmin = ref(false);
+          var isLoading = ref(true);
 
-            const matchPlatform = !filters.value.platform || work.platform === filters.value.platform;
-            const matchEventType = !filters.value.eventType ||
-              work.history.some(h => h.event_type.includes(filters.value.eventType));
-
-            return matchQuery && matchPlatform && matchEventType;
-          });
-        });
-
-        const getPlatformBadge = (p) => {
-          const map = {
-            'Lezhin KR': 'bg-red-100 text-red-700',
-            'Bomtoon': 'bg-rose-100 text-rose-700',
-            'Ridibooks': 'bg-blue-100 text-blue-700',
-            'Mr.Blue': 'bg-sky-100 text-sky-700',
-            'Lezhin US': 'bg-purple-100 text-purple-700'
+          var checkAdminStatus = function() {
+            var urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('key') === ADMIN_PASSWORD) {
+              isAdmin.value = true;
+              localStorage.setItem('is_comic_admin', 'true');
+              return;
+            }
+            if (localStorage.getItem('is_comic_admin') === 'true') {
+              isAdmin.value = true;
+            }
           };
-          return map[p] || 'bg-slate-100 text-slate-700';
-        };
 
-        const getEventTypeBadge = (t) => {
-          if (t.includes('100%')) return 'bg-emerald-100 text-emerald-800';
-          if (t.includes('1c')) return 'bg-amber-100 text-amber-800';
-          if (t.includes('2c')) return 'bg-orange-100 text-orange-800';
-          if (t.includes('50%')) return 'bg-indigo-100 text-indigo-800';
-          return 'bg-slate-100 text-slate-700';
-        };
-
-        // 测算器逻辑
-        const calculator = ref({ visible: false, work: null, event: null, buyEpisodes: 10 });
-
-        const openCalculator = (work, event) => {
-          calculator.value = {
-            visible: true,
-            work: work,
-            event: event,
-            buyEpisodes: work.total_episodes
+          var loginAdmin = function() {
+            var pwd = prompt("请输入管理员密钥：");
+            if (pwd === ADMIN_PASSWORD) {
+              isAdmin.value = true;
+              localStorage.setItem('is_comic_admin', 'true');
+              alert("认证成功！已开启数据全网发布权限。");
+            } else if (pwd !== null) {
+              alert("密钥错误，无权管理！");
+            }
           };
-        };
 
-        const calcOriginalTotal = computed(() => {
-          if (!calculator.value.work) return 0;
-          return calculator.value.buyEpisodes * calculator.value.work.original_coin_per_ep;
-        });
+          var logoutAdmin = function() {
+            isAdmin.value = false;
+            localStorage.removeItem('is_comic_admin');
+            alert("已退出管理员模式。");
+          };
 
-        const calcDiscountedPay = computed(() => {
-          if (!calculator.value.event) return 0;
-          return Math.ceil(calculator.value.buyEpisodes * calculator.value.event.pay_coin);
-        });
+          checkAdminStatus();
 
-        const calcCashback = computed(() => {
-          if (!calculator.value.event) return 0;
-          return Math.floor(calcDiscountedPay.value * (calculator.value.event.cashback_ratio || 0));
-        });
+          var works = ref([]);
+          var exchangeRate = ref({ coinToKrw: 120, krwToCny: 5.3 });
+          var filters = ref({ query: '', platform: '', eventType: '' });
+          var platformList = ['Lezhin KR', 'Bomtoon', 'Ridibooks', 'Mr.Blue', 'Lezhin US'];
 
-        const calcNetCoinCost = computed(() => {
-          return calcDiscountedPay.value - calcCashback.value;
-        });
+          // 核心：全网访客打开页面时，统一从云端公共数据池拉取
+          var fetchCloudProducts = async function() {
+            isLoading.value = true;
+            // 如果未配置云端池，先读本地备份
+            if (!CLOUD_BIN_ID || CLOUD_BIN_ID === '填入你的BIN_ID') {
+              var local = localStorage.getItem('custom_comic_works');
+              works.value = local ? JSON.parse(local) : DEFAULT_FALLBACK_DATA;
+              isLoading.value = false;
+              return;
+            }
 
-        const calcCnyCost = computed(() => {
-          if (calculator.value.work?.platform === 'Ridibooks') {
-            return ((calcNetCoinCost.value / 1000) * exchangeRate.value.krwToCny).toFixed(2);
-          }
-          const krw = calcNetCoinCost.value * exchangeRate.value.coinToKrw;
-          return ((krw / 1000) * exchangeRate.value.krwToCny).toFixed(2);
-        });
-
-        // 导入 Excel 处理
-        const handleImportExcel = (e) => {
-          const file = e.target.files[0];
-          if (!file) return;
-
-          const reader = new FileReader();
-          reader.onload = async (evt) => {
             try {
-              const data = new Uint8Array(evt.target.result);
-              const workbook = XLSX.read(data, { type: 'array' });
-              const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+              var res = await fetch('https://api.jsonbin.io/v3/b/' + CLOUD_BIN_ID + '/latest', {
+                headers: { 'X-Master-Key': CLOUD_API_KEY }
+              });
+              if (res.ok) {
+                var json = await res.json();
+                if (Array.isArray(json.record) && json.record.length > 0) {
+                  works.value = json.record;
+                  localStorage.setItem('custom_comic_works', JSON.stringify(json.record));
+                } else {
+                  works.value = DEFAULT_FALLBACK_DATA;
+                }
+              } else {
+                throw new Error("云端拉取失败");
+              }
+            } catch(e) {
+              console.log("使用本地容灾数据");
+              var local = localStorage.getItem('custom_comic_works');
+              works.value = local ? JSON.parse(local) : DEFAULT_FALLBACK_DATA;
+            } finally {
+              isLoading.value = false;
+            }
+          };
 
-              const workMap = new Map();
-              rows.forEach((row, i) => {
-                const platform = row['平台'] || 'Lezhin KR';
-                const titleZh = row['作品中文名'] || '未命名作品';
-                const titleKo = row['作品韩文名'] || titleZh;
-                const key = `${platform}_${titleKo}`;
+          onMounted(function() {
+            fetchCloudProducts();
+          });
 
-                if (!workMap.has(key)) {
-                  workMap.set(key, {
-                    id: `import-${Date.now()}-${i}`,
-                    title_ko: String(titleKo),
-                    title_zh: String(titleZh),
-                    platform: String(platform),
-                    currency: platform === 'Ridibooks' ? 'Point/Cash' : 'Coin',
-                    genre: row['类型'] || 'BL',
-                    original_coin_per_ep: Number(row['单话原价']) || 3,
-                    total_episodes: Number(row['总话数']) || 10,
-                    is_completed: true,
-                    history: []
+          var filteredWorks = computed(function() {
+            return works.value.filter(function(work) {
+              var q = filters.value.query.trim().toLowerCase();
+              var matchQuery = !q ||
+                work.title_ko.toLowerCase().indexOf(q) !== -1 ||
+                work.title_zh.toLowerCase().indexOf(q) !== -1 ||
+                work.history.some(function(h) { return h.event_name.toLowerCase().indexOf(q) !== -1; });
+
+              var matchPlatform = !filters.value.platform || work.platform === filters.value.platform;
+              var matchEventType = !filters.value.eventType ||
+                work.history.some(function(h) { return h.event_type.indexOf(filters.value.eventType) !== -1; });
+
+              return matchQuery && matchPlatform && matchEventType;
+            });
+          });
+
+          var getPlatformBadge = function(p) {
+            var map = {
+              'Lezhin KR': 'bg-red-100 text-red-700',
+              'Bomtoon': 'bg-rose-100 text-rose-700',
+              'Ridibooks': 'bg-blue-100 text-blue-700',
+              'Mr.Blue': 'bg-sky-100 text-sky-700',
+              'Lezhin US': 'bg-purple-100 text-purple-700'
+            };
+            return map[p] || 'bg-slate-100 text-slate-700';
+          };
+
+          var getEventTypeBadge = function(t) {
+            if (t.indexOf('100%') !== -1) return 'bg-emerald-100 text-emerald-800';
+            if (t.indexOf('1c') !== -1) return 'bg-amber-100 text-amber-800';
+            if (t.indexOf('2c') !== -1) return 'bg-orange-100 text-orange-800';
+            if (t.indexOf('50%') !== -1) return 'bg-indigo-100 text-indigo-800';
+            return 'bg-slate-100 text-slate-700';
+          };
+
+          var calculator = ref({ visible: false, work: null, event: null, buyEpisodes: 10 });
+
+          var openCalculator = function(work, event) {
+            calculator.value = {
+              visible: true,
+              work: work,
+              event: event,
+              buyEpisodes: work.total_episodes || 10
+            };
+          };
+
+          var calcOriginalTotal = computed(function() {
+            if (!calculator.value.work) return 0;
+            return calculator.value.buyEpisodes * calculator.value.work.original_coin_per_ep;
+          });
+
+          var calcDiscountedPay = computed(function() {
+            if (!calculator.value.event) return 0;
+            return Math.ceil(calculator.value.buyEpisodes * (calculator.value.event.pay_coin || 3));
+          });
+
+          var calcCashback = computed(function() {
+            if (!calculator.value.event) return 0;
+            return Math.floor(calcDiscountedPay.value * (calculator.value.event.cashback_ratio || 0));
+          });
+
+          var calcNetCoinCost = computed(function() {
+            return calcDiscountedPay.value - calcCashback.value;
+          });
+
+          var calcCnyCost = computed(function() {
+            if (calculator.value.work && calculator.value.work.platform === 'Ridibooks') {
+              return ((calcNetCoinCost.value / 1000) * exchangeRate.value.krwToCny).toFixed(2);
+            }
+            var krw = calcNetCoinCost.value * exchangeRate.value.coinToKrw;
+            return ((krw / 1000) * exchangeRate.value.krwToCny).toFixed(2);
+          });
+
+          // 核心：导入 Excel 并一键覆盖推送到全网云端数据池
+          var handleImportExcel = function(e) {
+            if (!isAdmin.value) {
+              alert("无权操作！请先登录管理员。");
+              return;
+            }
+            var file = e.target.files[0];
+            if (!file) return;
+
+            var formatExcelDate = function(val) {
+              if (!val) return '2026';
+              if (typeof val === 'string' && val.indexOf('-') !== -1) return val;
+              if (typeof val === 'number') {
+                var jsDate = new Date(Math.round((val - 25569) * 86400 * 1000));
+                var y = jsDate.getUTCFullYear();
+                var m = ('0' + (jsDate.getUTCMonth() + 1)).slice(-2);
+                var d = ('0' + jsDate.getUTCDate()).slice(-2);
+                return y + '-' + m + '-' + d;
+              }
+              return String(val);
+            };
+
+            var reader = new FileReader();
+            reader.onload = async function(evt) {
+              try {
+                var data = new Uint8Array(evt.target.result);
+                var workbook = XLSX.read(data, { type: 'array' });
+                var rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+
+                var workMap = new Map();
+                rows.forEach(function(row, i) {
+                  var platform = row['平台'] || 'Lezhin KR';
+                  var titleZh = row['作品中文名'] || '未命名作品';
+                  var titleKo = row['作品韩文名'] || titleZh;
+                  var key = platform + '_' + titleKo;
+
+                  if (!workMap.has(key)) {
+                    workMap.set(key, {
+                      id: 'import-' + Date.now() + '-' + i,
+                      title_ko: String(titleKo),
+                      title_zh: String(titleZh),
+                      platform: String(platform),
+                      currency: platform === 'Ridibooks' ? 'Point/Cash' : 'Coin',
+                      genre: row['类型'] || 'BL',
+                      original_coin_per_ep: Number(row['单话原价']) || 3,
+                      total_episodes: Number(row['总话数']) || 10,
+                      history: []
+                    });
+                  }
+
+                  workMap.get(key).history.push({
+                    event_name: row['活动名称'] || '大促特惠',
+                    event_type: row['优惠类型'] || '1c 展',
+                    date: formatExcelDate(row['活动时间']),
+                    pay_coin: Number(row['活动单价']) || 1,
+                    cashback_ratio: Number(row['返还比例']) || 0.0,
+                    target_episodes: String(row['适用范围'] || '全篇'),
+                    rule_desc: String(row['规则备注'] || '无')
                   });
+                });
+
+                var importedWorks = Array.from(workMap.values());
+                works.value = importedWorks;
+                localStorage.setItem('custom_comic_works', JSON.stringify(importedWorks));
+
+                // 如果配置了云端数据池，自动 PUT 更新云端数据
+                if (CLOUD_BIN_ID && CLOUD_BIN_ID !== '填入你的BIN_ID') {
+                  var putRes = await fetch('https://api.jsonbin.io/v3/b/' + CLOUD_BIN_ID, {
+                    method: 'PUT',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'X-Master-Key': CLOUD_API_KEY
+                    },
+                    body: JSON.stringify(importedWorks)
+                  });
+
+                  if (putRes.ok) {
+                    alert('🎉 成功导入 ' + importedWorks.length + ' 部作品并已全网发布！现在全世界任何人打开链接都能看到最新数据！');
+                  } else {
+                    alert('数据已保存在本地，但云端推送被拒绝，请检查 BIN_ID 和 API_KEY 配置！');
+                  }
+                } else {
+                  alert('数据已保存在当前浏览器，但未配置云端池，其他人暂时无法同步查看。');
                 }
 
-                workMap.get(key).history.push({
-                  event_name: row['活动名称'] || '大促特惠',
-                  event_type: row['优惠类型'] || '1c 展',
-                  date: String(row['活动时间'] || '2026'),
-                  rule_type: Number(row['返还比例']) >= 1.0 ? 'payback_100' : 'direct_discount',
-                  pay_coin: Number(row['活动单价']) || 1,
-                  cashback_ratio: Number(row['返还比例']) || 0.0,
-                  target_episodes: String(row['适用范围'] || '全篇'),
-                  rule_desc: String(row['规则备注'] || '无')
-                });
-              });
+                e.target.value = '';
+              } catch (err) {
+                alert('解析 Excel 失败，请检查文件格式！');
+              }
+            };
+            reader.readAsArrayBuffer(file);
+          };
 
-              const importedWorks = Array.from(workMap.values());
-              works.value = importedWorks;
+          var downloadTemplate = function() {
+            var template = [{
+              "平台": "Lezhin KR",
+              "作品中文名": "西西弗斯的狗",
+              "作品韩文名": "시시포스의 개들",
+              "类型": "BL",
+              "单话原价": 3,
+              "总话数": 45,
+              "活动时间": "2026-10-22",
+              "活动名称": "72小时100%返币",
+              "优惠类型": "100% Coinback",
+              "活动单价": 3,
+              "返还比例": 1.0,
+              "适用范围": "全篇",
+              "规则备注": "全额返还Bonus币"
+            }];
+            var ws = XLSX.utils.json_to_sheet(template);
+            var wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "导入模板");
+            XLSX.writeFile(wb, "韩漫促销导入模板.xlsx");
+          };
 
-              await fetch('/api/products/batch', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(importedWorks)
-              });
-
-              alert(`成功导入 ${importedWorks.length} 部作品数据！
+          return {
+            isAdmin: isAdmin,
+            isLoading: isLoading,
+            loginAdmin: loginAdmin,
+            logoutAdmin: logoutAdmin,
+            works: works,
+            exchangeRate: exchangeRate,
+            filters: filters,
+            platformList: platformList,
+            filteredWorks: filteredWorks,
+            getPlatformBadge: getPlatformBadge,
+            getEventTypeBadge: getEventTypeBadge,
+            calculator: calculator,
+            openCalculator: openCalculator,
+            calcOriginalTotal: calcOriginalTotal,
+            calcDiscountedPay: calcDiscountedPay,
+            calcCashback: calcCashback,
+            calcNetCoinCost: calcNetCoinCost,
+            calcCnyCost: calcCnyCost,
+            handleImportExcel: handleImportExcel,
+            downloadTemplate: downloadTemplate
+          };
+        }
+      }).mount('#app');
+    });
+  </script>
+</body>
+</html>
