@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>韩漫作品历史促销档案 & 抄底测算器</title>
+  <title>韩漫作品历史促销活动 & 抄底测算器</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- SheetJS (Excel解析库) -->
@@ -18,17 +18,16 @@
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen">
 
-
   <div id="app" class="max-w-6xl mx-auto px-4 py-8">
     
     <!-- 顶部 Header -->
     <header class="mb-8 text-center sm:text-left sm:flex sm:justify-between sm:items-end border-b border-slate-200 pb-6">
       <div>
         <div class="inline-flex items-center gap-2 px-3 py-1 bg-rose-50 text-rose-600 rounded-full text-xs font-semibold mb-2">
-          <span>✨ 韩漫作品大促活动数据 </span>
+          <span>✨ 韩漫大促历史数据 </span>
         </div>
-        <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">韩漫作品历史促销档案 & 抄底测算器</h1>
-        <p class="text-slate-500 text-sm mt-1">涵盖 Lezhin / Bomtoon / Ridibooks / Mr.Blue 近来 100% 返还、1c活动与半价节点</p>
+        <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">韩漫近来促销活动 & 抄底测算器</h1>
+        <p class="text-slate-500 text-sm mt-1">涵盖 Lezhin / Bomtoon / Ridibooks / Mr.Blue 历来 100% 返还、1c特惠与半价节点</p>
       </div>
 
       <!-- 汇率设置与权限管理栏 -->
@@ -48,10 +47,13 @@
         <div v-if="isAdmin" class="flex items-center gap-2 bg-emerald-50 border border-emerald-200 p-1.5 rounded-xl">
           <input type="file" ref="fileInput" @change="handleImportExcel" accept=".xlsx,.xls,.csv" class="hidden" />
           <button @click="$refs.fileInput.click()" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm transition">
-            📥 导入 Excel 并全网发布
+            📥 导入 Excel 表格
           </button>
           <button @click="downloadTemplate" class="px-3 py-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold transition">
             📄 下载模板
+          </button>
+          <button @click="resetToDefaultData" class="px-2 py-1 text-slate-500 hover:text-slate-800 text-xs">
+            重置默认
           </button>
           <button @click="logoutAdmin" class="text-xs text-rose-500 hover:underline px-1 font-medium">
             退出管理
@@ -85,7 +87,7 @@
             <option value="">全部优惠力度 (All Types)</option>
             <option value="100% Coinback">100% 全额返币</option>
             <option value="100% Payback">100% 积分返还</option>
-            <option value="1c 展">1 Coin (1c 活动)</option>
+            <option value="1c 展">1 Coin (1c 特惠)</option>
             <option value="2c 展">2 Coin (2c 特惠)</option>
             <option value="50% 折扣">50% 半价</option>
             <option value="积分返现">积分返现 (Pointback)</option>
@@ -94,13 +96,8 @@
       </div>
     </section>
 
-    <!-- 加载中提示 -->
-    <div v-if="isLoading" class="text-center py-10 text-slate-400 text-sm">
-      ⏳ 正在从云端拉取最新全网大促数据...
-    </div>
-
     <!-- 作品列表展示 -->
-    <main v-else class="space-y-4">
+    <main class="space-y-4">
       <div v-for="work in filteredWorks" :key="work.id" class="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
         <div class="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -154,23 +151,50 @@
           <input v-model.number="calculator.buyEpisodes" type="number" min="1" :max="calculator.work.total_episodes" class="w-full border rounded-lg p-2 text-sm font-bold" />
         </div>
 
-        <div class="bg-gradient-to-br from-slate-900 to-indigo-950 text-white p-4 rounded-xl space-y-2">
+        <!-- 费用测算结果面板 -->
+        <div class="bg-gradient-to-br from-slate-900 to-indigo-950 text-white p-4 rounded-xl space-y-2.5">
           <div class="flex justify-between text-xs text-slate-300">
             <span>原价需付：</span>
             <span class="line-through">{{ calcOriginalTotal }} {{ calculator.work.currency }}</span>
           </div>
-          <div class="flex justify-between text-sm font-semibold text-amber-400">
-            <span>活动实际支付：</span>
-            <span>{{ calcDiscountedPay }} {{ calculator.work.currency }}</span>
-          </div>
-          <div v-if="calcCashback > 0" class="flex justify-between text-sm font-semibold text-emerald-400">
-            <span>全额返还 (Bonus)：</span>
-            <span>+ {{ calcCashback }} 代币/积分</span>
-          </div>
-          <div class="border-t border-slate-800 pt-2 flex justify-between items-baseline">
-            <span class="text-xs text-slate-400">折合人民币 ≈ ¥{{ calcCnyCost }} 元</span>
-            <span class="text-2xl font-black">{{ calcNetCoinCost }} <span class="text-xs">{{ calculator.work.currency }}</span></span>
-          </div>
+
+          <!-- 100% 全额返还专属展示结构：单话半价换算 -->
+          <template v-if="isPayback100">
+            <div class="flex justify-between text-xs text-amber-300">
+              <span>门槛先付代币：</span>
+              <span>{{ calcDiscountedPay }} {{ calculator.work.currency }}</span>
+            </div>
+            <div class="flex justify-between text-xs text-emerald-400">
+              <span>全额返还代币 (Bonus)：</span>
+              <span>+ {{ calcCashback }} 代币/积分</span>
+            </div>
+            <div class="border-t border-slate-800 pt-2 flex justify-between items-baseline">
+              <div>
+                <span class="text-xs text-amber-300 block font-bold">折合实际成本 (单话半价分摊)：</span>
+                <span class="text-[10px] text-slate-400">买一送一机制 · 折合人民币 ≈ ¥{{ calcCnyCost }} 元</span>
+              </div>
+              <div class="text-right">
+                <span class="text-2xl font-black text-amber-400">{{ calcNetCoinCost }}</span>
+                <span class="text-xs text-slate-300 ml-1">{{ calculator.work.currency }}</span>
+              </div>
+            </div>
+          </template>
+
+          <!-- 常规折扣/返现展示结构 -->
+          <template v-else>
+            <div class="flex justify-between text-sm font-semibold text-amber-400">
+              <span>活动实际支付：</span>
+              <span>{{ calcDiscountedPay }} {{ calculator.work.currency }}</span>
+            </div>
+            <div v-if="calcCashback > 0" class="flex justify-between text-sm font-semibold text-emerald-400">
+              <span>活动返还 (Bonus)：</span>
+              <span>+ {{ calcCashback }} 代币/积分</span>
+            </div>
+            <div class="border-t border-slate-800 pt-2 flex justify-between items-baseline">
+              <span class="text-xs text-slate-400">折合人民币 ≈ ¥{{ calcCnyCost }} 元</span>
+              <span class="text-2xl font-black">{{ calcNetCoinCost }} <span class="text-xs">{{ calculator.work.currency }}</span></span>
+            </div>
+          </template>
         </div>
 
         <button @click="calculator.visible = false" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold">
@@ -180,17 +204,10 @@
     </div>
 
   </div>
- 
 
   <!-- 核心逻辑脚本 -->
   <script>
-    // ================= 请配置你的云端公共数据池 (JSONBin.io) =================
-    // 所有人打开网页都会从这个 Bin ID 自动拉取数据；你导入时会自动推送到这里
-    var CLOUD_BIN_ID = '6adecdddffd5d160538bba95';           // 例如: '671c89f5ad19ca34f8bf0000'
-    var CLOUD_API_KEY = '$2a$10$5Ia0pce6a4OT2ph1tlRqa.pxXxE.D26VqEAWm3WlrgfTdFwLX2yFS';      // 例如: '$2a$10$xxxxxxxxxxxxxxxxxxxx'
-    // =======================================================================
-
-    var DEFAULT_FALLBACK_DATA = [
+    var DEFAULT_DATA = [
       {
         id: "lz-01",
         title_ko: "시시포스의 개들",
@@ -207,7 +224,7 @@
           pay_coin: 3,
           cashback_ratio: 1.0,
           target_episodes: "全篇全话",
-          rule_desc: "全本购买消耗代币100%返还为Bonus币"
+          rule_desc: "全本购买消耗代币100%返还为Bonus币(单话折合半价)"
         }]
       },
       {
@@ -228,6 +245,44 @@
           target_episodes: "前 30 话",
           rule_desc: "前30话降至2c，消费满50币额外返30%"
         }]
+      },
+      {
+        id: "bt-01",
+        title_ko: "창 너머 창",
+        title_zh: "窗外之窗",
+        platform: "Bomtoon",
+        currency: "Coin",
+        genre: "BL / 经典",
+        original_coin_per_ep: 3,
+        total_episodes: 65,
+        history: [{
+          event_name: "2026 BAAM Festa 신년 1코인전",
+          event_type: "1c 展",
+          date: "2026-01-01",
+          pay_coin: 1,
+          cashback_ratio: 0.0,
+          target_episodes: "全篇全话",
+          rule_desc: "全篇统一降至 1 Coin/话"
+        }]
+      },
+      {
+        id: "rd-01",
+        title_ko: "페이백 (PAYBACK)",
+        title_zh: "偿还 (PAYBACK)",
+        platform: "Ridibooks",
+        currency: "Point/Cash",
+        genre: "BL / 演艺圈",
+        original_coin_per_ep: 500,
+        total_episodes: 85,
+        history: [{
+          event_name: "2026 설 연휴 100% 포인트백",
+          event_type: "100% Payback",
+          date: "2026-02-15",
+          pay_coin: 500,
+          cashback_ratio: 1.0,
+          target_episodes: "单行本第 1~4 卷",
+          rule_desc: "全额返还等值 Ridi 积分(折合半价成本)"
+        }]
       }
     ];
 
@@ -246,7 +301,6 @@
         setup: function() {
           var ADMIN_PASSWORD = 'admin2026';
           var isAdmin = ref(false);
-          var isLoading = ref(true);
 
           var checkAdminStatus = function() {
             var urlParams = new URLSearchParams(window.location.search);
@@ -265,7 +319,7 @@
             if (pwd === ADMIN_PASSWORD) {
               isAdmin.value = true;
               localStorage.setItem('is_comic_admin', 'true');
-              alert("认证成功！已开启数据全网发布权限。");
+              alert("认证成功！已开启数据管理权限。");
             } else if (pwd !== null) {
               alert("密钥错误，无权管理！");
             }
@@ -279,49 +333,36 @@
 
           checkAdminStatus();
 
-          var works = ref([]);
+          var works = ref(DEFAULT_DATA);
           var exchangeRate = ref({ coinToKrw: 120, krwToCny: 5.3 });
           var filters = ref({ query: '', platform: '', eventType: '' });
           var platformList = ['Lezhin KR', 'Bomtoon', 'Ridibooks', 'Mr.Blue', 'Lezhin US'];
 
-          // 核心：全网访客打开页面时，统一从云端公共数据池拉取
-          var fetchCloudProducts = async function() {
-            isLoading.value = true;
-            // 如果未配置云端池，先读本地备份
-            if (!CLOUD_BIN_ID || CLOUD_BIN_ID === '填入你的BIN_ID') {
-              var local = localStorage.getItem('custom_comic_works');
-              works.value = local ? JSON.parse(local) : DEFAULT_FALLBACK_DATA;
-              isLoading.value = false;
-              return;
-            }
-
-            try {
-              var res = await fetch('https://api.jsonbin.io/v3/b/' + CLOUD_BIN_ID + '/latest', {
-                headers: { 'X-Master-Key': CLOUD_API_KEY }
-              });
-              if (res.ok) {
-                var json = await res.json();
-                if (Array.isArray(json.record) && json.record.length > 0) {
-                  works.value = json.record;
-                  localStorage.setItem('custom_comic_works', JSON.stringify(json.record));
-                } else {
-                  works.value = DEFAULT_FALLBACK_DATA;
+          var fetchProducts = function() {
+            var localData = localStorage.getItem('custom_comic_works');
+            if (localData) {
+              try {
+                var parsed = JSON.parse(localData);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  works.value = parsed;
+                  return;
                 }
-              } else {
-                throw new Error("云端拉取失败");
-              }
-            } catch(e) {
-              console.log("使用本地容灾数据");
-              var local = localStorage.getItem('custom_comic_works');
-              works.value = local ? JSON.parse(local) : DEFAULT_FALLBACK_DATA;
-            } finally {
-              isLoading.value = false;
+              } catch(e) {}
             }
+            works.value = DEFAULT_DATA;
           };
 
           onMounted(function() {
-            fetchCloudProducts();
+            fetchProducts();
           });
+
+          var resetToDefaultData = function() {
+            if (confirm("确定要清空已导入的自定义数据，恢复为初始预设列表吗？")) {
+              localStorage.removeItem('custom_comic_works');
+              works.value = DEFAULT_DATA;
+              alert("已恢复初始预设数据！");
+            }
+          };
 
           var filteredWorks = computed(function() {
             return works.value.filter(function(work) {
@@ -369,25 +410,44 @@
             };
           };
 
+          // 判断当前活动是否为 100% 全额返还活动
+          var isPayback100 = computed(function() {
+            if (!calculator.value.event) return false;
+            var type = calculator.value.event.event_type || '';
+            var ratio = calculator.value.event.cashback_ratio || 0;
+            return type.indexOf('100%') !== -1 || ratio >= 1.0;
+          });
+
+          // 原价总计
           var calcOriginalTotal = computed(function() {
             if (!calculator.value.work) return 0;
             return calculator.value.buyEpisodes * calculator.value.work.original_coin_per_ep;
           });
 
+          // 门槛需付代币
           var calcDiscountedPay = computed(function() {
             if (!calculator.value.event) return 0;
             return Math.ceil(calculator.value.buyEpisodes * (calculator.value.event.pay_coin || 3));
           });
 
+          // 返还赠币/积分数量
           var calcCashback = computed(function() {
             if (!calculator.value.event) return 0;
             return Math.floor(calcDiscountedPay.value * (calculator.value.event.cashback_ratio || 0));
           });
 
+          // 【核心修改】：100% 返还按“单话半价”分摊计算净成本！
           var calcNetCoinCost = computed(function() {
-            return calcDiscountedPay.value - calcCashback.value;
+            if (!calculator.value.work || !calculator.value.event) return 0;
+            if (isPayback100.value) {
+              // 单话半价折算（例如原价 3币/话，折合 1.5币/话）
+              return Math.ceil(calcOriginalTotal.value / 2);
+            }
+            // 普通折扣或返现活动
+            return Math.max(0, calcDiscountedPay.value - calcCashback.value);
           });
 
+          // 人民币成本估算
           var calcCnyCost = computed(function() {
             if (calculator.value.work && calculator.value.work.platform === 'Ridibooks') {
               return ((calcNetCoinCost.value / 1000) * exchangeRate.value.krwToCny).toFixed(2);
@@ -396,7 +456,7 @@
             return ((krw / 1000) * exchangeRate.value.krwToCny).toFixed(2);
           });
 
-          // 核心：导入 Excel 并一键覆盖推送到全网云端数据池
+          // Excel 导入与解析（支持 46317 转 YYYY-MM-DD，并直接持久化保存）
           var handleImportExcel = function(e) {
             if (!isAdmin.value) {
               alert("无权操作！请先登录管理员。");
@@ -419,7 +479,7 @@
             };
 
             var reader = new FileReader();
-            reader.onload = async function(evt) {
+            reader.onload = function(evt) {
               try {
                 var data = new Uint8Array(evt.target.result);
                 var workbook = XLSX.read(data, { type: 'array' });
@@ -460,27 +520,7 @@
                 var importedWorks = Array.from(workMap.values());
                 works.value = importedWorks;
                 localStorage.setItem('custom_comic_works', JSON.stringify(importedWorks));
-
-                // 如果配置了云端数据池，自动 PUT 更新云端数据
-                if (CLOUD_BIN_ID && CLOUD_BIN_ID !== '填入你的BIN_ID') {
-                  var putRes = await fetch('https://api.jsonbin.io/v3/b/' + CLOUD_BIN_ID, {
-                    method: 'PUT',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'X-Master-Key': CLOUD_API_KEY
-                    },
-                    body: JSON.stringify(importedWorks)
-                  });
-
-                  if (putRes.ok) {
-                    alert('🎉 成功导入 ' + importedWorks.length + ' 部作品并已全网发布！现在全世界任何人打开链接都能看到最新数据！');
-                  } else {
-                    alert('数据已保存在本地，但云端推送被拒绝，请检查 BIN_ID 和 API_KEY 配置！');
-                  }
-                } else {
-                  alert('数据已保存在当前浏览器，但未配置云端池，其他人暂时无法同步查看。');
-                }
-
+                alert('🎉 成功导入 ' + importedWorks.length + ' 部作品！已保存在本地，刷新页面也不会丢失。');
                 e.target.value = '';
               } catch (err) {
                 alert('解析 Excel 失败，请检查文件格式！');
@@ -503,7 +543,7 @@
               "活动单价": 3,
               "返还比例": 1.0,
               "适用范围": "全篇",
-              "规则备注": "全额返还Bonus币"
+              "规则备注": "全额返还Bonus币(单话折合半价)"
             }];
             var ws = XLSX.utils.json_to_sheet(template);
             var wb = XLSX.utils.book_new();
@@ -513,7 +553,7 @@
 
           return {
             isAdmin: isAdmin,
-            isLoading: isLoading,
+            isPayback100: isPayback100,
             loginAdmin: loginAdmin,
             logoutAdmin: logoutAdmin,
             works: works,
@@ -531,7 +571,8 @@
             calcNetCoinCost: calcNetCoinCost,
             calcCnyCost: calcCnyCost,
             handleImportExcel: handleImportExcel,
-            downloadTemplate: downloadTemplate
+            downloadTemplate: downloadTemplate,
+            resetToDefaultData: resetToDefaultData
           };
         }
       }).mount('#app');
