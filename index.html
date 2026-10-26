@@ -18,17 +18,17 @@
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen">
 
-  {% raw %}
+
   <div id="app" class="max-w-6xl mx-auto px-4 py-8">
     
     <!-- 顶部 Header -->
     <header class="mb-8 text-center sm:text-left sm:flex sm:justify-between sm:items-end border-b border-slate-200 pb-6">
       <div>
         <div class="inline-flex items-center gap-2 px-3 py-1 bg-rose-50 text-rose-600 rounded-full text-xs font-semibold mb-2">
-          <span>✨ 2026 韩国漫画大促历史数据库 (全网云端同步版)</span>
+          <span>✨ 韩漫作品大促活动数据 </span>
         </div>
-        <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">韩漫历史促销档案 & 抄底测算器</h1>
-        <p class="text-slate-500 text-sm mt-1">涵盖 Lezhin / Bomtoon / Ridibooks / Mr.Blue 历来 100% 返还、1c 展与半价节点</p>
+        <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">韩漫作品历史促销档案 & 抄底测算器</h1>
+        <p class="text-slate-500 text-sm mt-1">涵盖 Lezhin / Bomtoon / Ridibooks / Mr.Blue 近来 100% 返还、1c活动与半价节点</p>
       </div>
 
       <!-- 汇率设置与权限管理栏 -->
@@ -71,7 +71,7 @@
     <section class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm mb-6 space-y-4">
       <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
         <div class="sm:col-span-5 relative">
-          <input v-model="filters.query" type="text" placeholder="搜索作品名(中/韩)或活动名..." class="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-xl focus:border-rose-500 outline-none" />
+          <input v-model="filters.query" type="text" placeholder="搜索作品名(中/韩/英)..." class="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-xl focus:border-rose-500 outline-none" />
           <span class="absolute left-3 top-2.5 text-slate-400">🔍</span>
         </div>
         <div class="sm:col-span-4">
@@ -85,10 +85,10 @@
             <option value="">全部优惠力度 (All Types)</option>
             <option value="100% Coinback">100% 全额返币</option>
             <option value="100% Payback">100% 积分返还</option>
-            <option value="1c 展">1 Coin (1c 展)</option>
+            <option value="1c 展">1 Coin (1c 活动)</option>
             <option value="2c 展">2 Coin (2c 特惠)</option>
-            <option value="50% 折扣">50% 半价/租借折减</option>
-            <option value="积分返现">大额返现 (Cashback)</option>
+            <option value="50% 折扣">50% 半价</option>
+            <option value="积分返现">积分返现 (Pointback)</option>
           </select>
         </div>
       </div>
@@ -180,7 +180,7 @@
     </div>
 
   </div>
-  {% endraw %}
+ 
 
   <!-- 核心逻辑脚本 -->
   <script>
