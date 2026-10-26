@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>韩漫作品历史促销活动 & 抄底测算器</title>
+  <title>韩漫作品近来促销活动 & 抄底测算器</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- SheetJS (Excel解析库) -->
+  <!-- SheetJS (Excel解析库，阿里镜像) -->
   <script src="https://registry.npmmirror.com/xlsx/0.18.5/files/dist/xlsx.full.min.js"></script>
   <!-- 阿里 NPM 镜像 Vue 3 -->
   <script src="https://registry.npmmirror.com/vue/3.3.4/files/dist/vue.global.prod.js"></script>
@@ -24,10 +24,10 @@
     <header class="mb-8 text-center sm:text-left sm:flex sm:justify-between sm:items-end border-b border-slate-200 pb-6">
       <div>
         <div class="inline-flex items-center gap-2 px-3 py-1 bg-rose-50 text-rose-600 rounded-full text-xs font-semibold mb-2">
-          <span>✨ 韩漫画大促历史数据 </span>
+          <span>✨ 韩漫作品近来促销活动 (在线测算)</span>
         </div>
-        <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">韩漫历史促销活动 & 抄底测算器</h1>
-        <p class="text-slate-500 text-sm mt-1">涵盖 Lezhin KR/Bomtoon/Ridibooks/Mr.Blue/Lezhin US </p>
+        <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">韩漫作品近来促销活动 & 抄底测算器</h1>
+        <p class="text-slate-500 text-sm mt-1">已涵盖 Lezhin KR、Bomtoon、Ridi、Mr.Blue 与 Lezhin US</p>
       </div>
 
       <!-- 汇率设置与权限管理栏 -->
@@ -76,15 +76,15 @@
         <div v-if="isAdmin" class="flex items-center gap-2 bg-emerald-50 border border-emerald-200 p-1.5 rounded-xl">
           <input type="file" ref="fileInput" @change="handleImportExcel" accept=".xlsx,.xls,.csv" class="hidden" />
           <button @click="$refs.fileInput.click()" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm transition">
-            📥 导入 Excel 表格
+            📥 导入 Excel (追加/修正)
           </button>
           <button @click="downloadTemplate" class="px-3 py-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold transition">
             📄 下载模板
           </button>
-          <button @click="resetToDefaultData" class="px-2 py-1 text-slate-500 hover:text-slate-800 text-xs">
-            重置默认
+          <button @click="clearAllData" class="px-2 py-1 text-rose-500 hover:text-rose-700 text-xs">
+            清空所有数据
           </button>
-          <button @click="logoutAdmin" class="text-xs text-rose-500 hover:underline px-1 font-medium">
+          <button @click="logoutAdmin" class="text-xs text-slate-400 hover:underline px-1 font-medium">
             退出管理
           </button>
         </div>
@@ -115,10 +115,10 @@
             <option value="">全部优惠力度 (All Types)</option>
             <option value="100% Coinback">100% 全额返币</option>
             <option value="100% Payback">100% 积分返还</option>
-            <option value="1c 展">1 Coin (1c 特惠)</option>
+            <option value="1c 展">1 Coin (1c 展)</option>
             <option value="2c 展">2 Coin (2c 特惠)</option>
             <option value="50% 折扣">50% 半价</option>
-            <option value="积分返现">积分返现 (Pointback)</option>
+            <option value="积分返现">积分返还 (Pointback)</option>
           </select>
         </div>
       </div>
@@ -126,6 +126,15 @@
 
     <!-- 作品列表展示 -->
     <main class="space-y-4">
+      <!-- 空数据状态提示 -->
+      <div v-if="filteredWorks.length === 0" class="text-center py-16 bg-white rounded-2xl border border-dashed border-slate-300">
+        <div class="text-3xl mb-2">📚</div>
+        <p class="text-slate-600 font-medium text-sm">
+          {{ works.length === 0 ? '暂无收录数据，请点击右上角登录管理员导入你的 Excel 表格' : '未找到符合筛选条件的作品或活动' }}
+        </p>
+      </div>
+
+      <!-- 作品卡片列表 -->
       <div v-for="work in filteredWorks" :key="work.id" class="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
         <div class="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -205,7 +214,7 @@
               <div>
                 <span class="text-xs text-amber-300 block font-bold">折合实际成本 (单话半价分摊)：</span>
                 <span class="text-[10px] text-slate-300">
-                   折合人民币 ≈ ¥{{ calcCnyCost }} 元
+                  折合人民币 ≈ ¥{{ calcCnyCost }} 元
                 </span>
               </div>
               <div class="text-right">
@@ -250,103 +259,8 @@
 
   <!-- 核心逻辑脚本 -->
   <script>
-    var DEFAULT_DATA = [
-      {
-        id: "lz-01",
-        title_ko: "시시포스의 개들",
-        title_zh: "西西弗斯的狗",
-        platform: "Lezhin KR",
-        currency: "Coin",
-        genre: "BL / 剧情",
-        original_coin_per_ep: 3,
-        total_episodes: 45,
-        history: [{
-          event_name: "2026 설맞이 100% 코인백 (新春全额返币)",
-          event_type: "100% Coinback",
-          date: "2026-02-12",
-          pay_coin: 3,
-          cashback_ratio: 1.0,
-          target_episodes: "全篇全话",
-          rule_desc: "全本购买消耗代币100%返还为Bonus币(单话折合半价)"
-        }]
-      },
-      {
-        id: "bt-01",
-        title_ko: "창 너머 창",
-        title_zh: "窗外之窗",
-        platform: "Bomtoon",
-        currency: "Coin",
-        genre: "BL / 经典",
-        original_coin_per_ep: 3,
-        total_episodes: 65,
-        history: [{
-          event_name: "2026 BAAM Festa 신년 1코인전",
-          event_type: "1c 展",
-          date: "2026-01-01",
-          pay_coin: 1,
-          cashback_ratio: 0.0,
-          target_episodes: "全篇全话",
-          rule_desc: "全篇统一降至 1 Coin/话"
-        }]
-      },
-      {
-        id: "rd-01",
-        title_ko: "페이백 (PAYBACK)",
-        title_zh: "偿还 (PAYBACK)",
-        platform: "Ridibooks",
-        currency: "Point/Cash",
-        genre: "BL / 演艺圈",
-        original_coin_per_ep: 500,
-        total_episodes: 85,
-        history: [{
-          event_name: "2026 설 연휴 100% 포인트백",
-          event_type: "100% Payback",
-          date: "2026-02-15",
-          pay_coin: 500,
-          cashback_ratio: 1.0,
-          target_episodes: "单行本第 1~4 卷",
-          rule_desc: "全额返还等值 Ridi 积分(折合半价成本)"
-        }]
-      },
-      {
-        id: "mb-01",
-        title_ko: "겨울 지나 벚꽃",
-        title_zh: "冬日后的樱花",
-        platform: "Mr.Blue",
-        currency: "Blue Money",
-        genre: "BL / 纯爱",
-        original_coin_per_ep: 300,
-        total_episodes: 120,
-        history: [{
-          event_name: "창립기념 BLoop 50% 페이백",
-          event_type: "积分返现",
-          date: "2026-06-18",
-          pay_coin: 300,
-          cashback_ratio: 0.5,
-          target_episodes: "全季打包",
-          rule_desc: "消费返还 50% Blue Mileage"
-        }]
-      },
-      {
-        id: "lus-01",
-        title_ko: "Pearl Boy",
-        title_zh: "珍珠少年 (Lezhin US)",
-        platform: "Lezhin US",
-        currency: "US Coin",
-        genre: "BL / 现代",
-        original_coin_per_ep: 30,
-        total_episodes: 90,
-        history: [{
-          event_name: "2026 Summer Sale 50% Off Bundle",
-          event_type: "50% 折扣",
-          date: "2026-07-15",
-          pay_coin: 15,
-          cashback_ratio: 0.0,
-          target_episodes: "全篇打包",
-          rule_desc: "全套打包享受半价优惠 (每话仅需15 US Coin)"
-        }]
-      }
-    ];
+    // 初始清空所有写死的默认数据，完全由导入的数据主导
+    var DEFAULT_DATA = [];
 
     window.addEventListener('DOMContentLoaded', function() {
       if (typeof Vue === 'undefined') {
@@ -395,9 +309,9 @@
 
           checkAdminStatus();
 
-          var works = ref(DEFAULT_DATA);
+          var works = ref([]);
 
-          // 【各平台专属定制换算单价】
+          // 各平台专属定制单价
           var rates = ref({
             lezhin_kr: 0.44,       // Lezhin KR: per 1c = 0.44 元
             bomtoon: 0.41,         // Bomtoon: per 1c = 0.41 元
@@ -408,6 +322,7 @@
           var filters = ref({ query: '', platform: '', eventType: '' });
           var platformList = ['Lezhin KR', 'Bomtoon', 'Ridibooks', 'Mr.Blue', 'Lezhin US'];
 
+          // 读取本地存储中的数据（若无则为空列表）
           var fetchProducts = function() {
             var localData = localStorage.getItem('custom_comic_works');
             if (localData) {
@@ -419,18 +334,19 @@
                 }
               } catch(e) {}
             }
-            works.value = DEFAULT_DATA;
+            works.value = [];
           };
 
           onMounted(function() {
             fetchProducts();
           });
 
-          var resetToDefaultData = function() {
-            if (confirm("确定要清空已导入的自定义数据，恢复为初始预设列表吗？")) {
+          // 清空所有已导入的数据
+          var clearAllData = function() {
+            if (confirm("确定要清空已导入的全部作品数据吗？清空后列表将变回空白。")) {
               localStorage.removeItem('custom_comic_works');
-              works.value = DEFAULT_DATA;
-              alert("已恢复初始预设数据！");
+              works.value = [];
+              alert("已清空所有作品数据！");
             }
           };
 
@@ -480,7 +396,6 @@
             };
           };
 
-          // 核心判断：是否为 100% 全额返还活动
           var isPayback100 = computed(function() {
             if (!calculator.value.event) return false;
             var type = calculator.value.event.event_type || '';
@@ -512,7 +427,6 @@
             return Math.max(0, calcDiscountedPay.value - calcCashback.value);
           });
 
-          // 当前选中作品所属平台的换算描述
           var getPlatformRateDesc = computed(function() {
             if (!calculator.value.work) return '';
             var p = calculator.value.work.platform;
@@ -522,32 +436,25 @@
             return '100₩ = ' + rates.value.korean_won_100w + '¥';
           });
 
-          // 人民币成本估算 (按指定平台单价精准核算)
+          // 核心人民币折算算法
           var calcCnyCost = computed(function() {
             if (!calculator.value.work) return '0.00';
             var p = calculator.value.work.platform;
             var coin = calcNetCoinCost.value;
 
-            // 1. Lezhin KR: per 1c = 0.44
             if (p === 'Lezhin KR') {
               return (coin * rates.value.lezhin_kr).toFixed(2);
             }
-
-            // 2. Bomtoon: per 1c = 0.41
             if (p === 'Bomtoon') {
               return (coin * rates.value.bomtoon).toFixed(2);
             }
-
-            // 3. Lezhin US: per 30c = 2.30 (每币 = 2.30 / 30)
             if (p === 'Lezhin US') {
               return (coin * (rates.value.lezhin_us_30c / 30.0)).toFixed(2);
             }
-
-            // 4. Ridibooks & Mr.Blue: 100₩ = 0.44 (代币即韩元，每100韩元 = 0.44)
             return ((coin / 100.0) * rates.value.korean_won_100w).toFixed(2);
           });
 
-          // Excel 导入与解析
+          // Excel 智能更新与增量合并导入解析
           var handleImportExcel = function(e) {
             if (!isAdmin.value) {
               alert("无权操作！请先登录管理员。");
@@ -576,7 +483,16 @@
                 var workbook = XLSX.read(data, { type: 'array' });
                 var rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
 
+                // 先读取已有全部作品数据
                 var workMap = new Map();
+                works.value.forEach(function(w) {
+                  var oldKey = w.platform + '_' + (w.title_ko || w.title_zh);
+                  workMap.set(oldKey, JSON.parse(JSON.stringify(w)));
+                });
+
+                var newEventCount = 0;
+                var updatedEventCount = 0;
+
                 rows.forEach(function(row, i) {
                   var platform = row['平台'] || 'Lezhin KR';
                   var titleZh = row['作品中文名'] || '未命名作品';
@@ -593,6 +509,7 @@
                   else if (platform === 'Ridibooks') defOriginal = 500;
                   else if (platform === 'Mr.Blue') defOriginal = 300;
 
+                  // 1. 若为全新作品，创建骨架
                   if (!workMap.has(key)) {
                     workMap.set(key, {
                       id: 'import-' + Date.now() + '-' + i,
@@ -607,21 +524,52 @@
                     });
                   }
 
-                  workMap.get(key).history.push({
-                    event_name: row['活动名称'] || '大促特惠',
-                    event_type: row['优惠类型'] || '1c 展',
-                    date: formatExcelDate(row['活动时间']),
+                  var targetWork = workMap.get(key);
+
+                  // 覆盖修正作品信息（总话数、原价、中文名等）
+                  if (row['总话数']) targetWork.total_episodes = Number(row['总话数']);
+                  if (row['单话原价']) targetWork.original_coin_per_ep = Number(row['单话原价']);
+                  if (row['作品中文名']) targetWork.title_zh = String(row['作品中文名']);
+                  if (row['类型']) targetWork.genre = String(row['类型']);
+
+                  var eventName = String(row['活动名称'] || '大促特惠');
+                  var eventDate = formatExcelDate(row['活动时间']);
+
+                  var newEventObj = {
+                    event_name: eventName,
+                    event_type: String(row['优惠类型'] || '1c 展'),
+                    date: eventDate,
                     pay_coin: Number(row['活动单价']) || 1,
                     cashback_ratio: Number(row['返还比例']) || 0.0,
                     target_episodes: String(row['适用范围'] || '全篇'),
                     rule_desc: String(row['规则备注'] || '无')
+                  };
+
+                  // 检查是否已有该条活动
+                  var existingIndex = targetWork.history.findIndex(function(h) {
+                    return h.event_name === eventName && h.date === eventDate;
                   });
+
+                  if (existingIndex !== -1) {
+                    // 已存在：直接用修正后的最新内容覆盖错误
+                    targetWork.history[existingIndex] = newEventObj;
+                    updatedEventCount++;
+                  } else {
+                    // 全新活动：追加在历史时间轴前方
+                    targetWork.history.unshift(newEventObj);
+                    newEventCount++;
+                  }
                 });
 
-                var importedWorks = Array.from(workMap.values());
-                works.value = importedWorks;
-                localStorage.setItem('custom_comic_works', JSON.stringify(importedWorks));
-                alert('🎉 成功导入 ' + importedWorks.length + ' 部作品！已保存在本地，刷新页面也不会丢失。');
+                var mergedWorks = Array.from(workMap.values());
+                works.value = mergedWorks;
+                localStorage.setItem('custom_comic_works', JSON.stringify(mergedWorks));
+
+                alert('🎉 导入处理完成！\n' +
+                      '- 覆盖修正错误活动：' + updatedEventCount + ' 条\n' +
+                      '- 新增全新活动记录：' + newEventCount + ' 条\n' +
+                      '- 当前收录总作品数：' + mergedWorks.length + ' 部\n' +
+                      '（错误已自动修正，其他作品数据完整保留）');
                 e.target.value = '';
               } catch (err) {
                 alert('解析 Excel 失败，请检查文件格式！');
@@ -634,8 +582,8 @@
             var template = [
               {
                 "平台": "Lezhin KR",
-                "作品中文名": "西西弗斯的狗",
-                "作品韩文名": "시시포스의 개들",
+                "作品中文名": "示例作品A",
+                "作品韩文名": "예시작품A",
                 "类型": "BL",
                 "单话原价": 3,
                 "总话数": 45,
@@ -649,8 +597,8 @@
               },
               {
                 "平台": "Bomtoon",
-                "作品中文名": "窗外之窗",
-                "作品韩文名": "창 너머 창",
+                "作品中文名": "示例作品B",
+                "作品韩文名": "예시작품B",
                 "类型": "BL",
                 "单话原价": 3,
                 "总话数": 65,
@@ -661,36 +609,6 @@
                 "返还比例": 0.0,
                 "适用范围": "全篇全话",
                 "规则备注": "Bomtoon每币0.41元"
-              },
-              {
-                "平台": "Ridibooks",
-                "作品中文名": "偿还 (PAYBACK)",
-                "作品韩文名": "페이백",
-                "类型": "BL",
-                "单话原价": 500,
-                "总话数": 85,
-                "活动时间": "2026-02-15",
-                "活动名称": "春节100%积分返还",
-                "优惠类型": "100% Payback",
-                "活动单价": 500,
-                "返还比例": 1.0,
-                "适用范围": "单行本全篇",
-                "规则备注": "100₩=0.44元折算"
-              },
-              {
-                "平台": "Lezhin US",
-                "作品中文名": "珍珠少年",
-                "作品韩文名": "Pearl Boy",
-                "类型": "BL",
-                "单话原价": 30,
-                "总话数": 90,
-                "活动时间": "2026-07-15",
-                "活动名称": "Summer Sale 50% Off",
-                "优惠类型": "50% 折扣",
-                "活动单价": 15,
-                "返还比例": 0.0,
-                "适用范围": "全本打包",
-                "规则备注": "每30币=2.30元"
               }
             ];
             var ws = XLSX.utils.json_to_sheet(template);
@@ -721,7 +639,7 @@
             calcCnyCost: calcCnyCost,
             handleImportExcel: handleImportExcel,
             downloadTemplate: downloadTemplate,
-            resetToDefaultData: resetToDefaultData
+            clearAllData: clearAllData
           };
         }
       }).mount('#app');
