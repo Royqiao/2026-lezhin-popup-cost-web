@@ -26,24 +26,42 @@
         <div class="inline-flex items-center gap-2 px-3 py-1 bg-rose-50 text-rose-600 rounded-full text-xs font-semibold mb-2">
           <span>✨ 韩漫大促历史数据 </span>
         </div>
-        <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">韩漫近来促销活动 & 抄底测算器</h1>
-        <p class="text-slate-500 text-sm mt-1">涵盖 Lezhin / Bomtoon / Ridibooks / Mr.Blue 历来 100% 返还、1c特惠与半价节点</p>
+        <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">韩漫历史促销活动 & 抄底测算器</h1>
+        <p class="text-slate-500 text-sm mt-1">涵盖 Lezhin / Bomtoon / Ridibooks / Mr.Blue/Lezhin US  抄底节点</p>
       </div>
 
-      <!-- 汇率设置与权限管理栏 -->
-      <div class="mt-4 sm:mt-0 flex flex-col sm:items-end gap-3">
-        <div class="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm text-xs flex items-center gap-4">
-          <div>
-            <span class="text-slate-400 block text-[10px]">1代币≈韩元</span>
-            <input v-model.number="exchangeRate.coinToKrw" type="number" class="w-14 font-bold border-b border-slate-300 focus:outline-none" /> ₩
+      <!-- 汇率设置与权限管理栏 (支持韩元与美元双轨输入) -->
+      <div class="mt-4 sm:mt-0 flex flex-col sm:items-end gap-2.5">
+        
+        <div class="flex flex-wrap sm:flex-nowrap gap-2 text-xs">
+          <!-- 韩元结算区 (KRW) -->
+          <div class="bg-white p-2 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3">
+            <span class="font-bold text-slate-500 text-[11px] bg-slate-100 px-1 rounded">韩元区</span>
+            <div>
+              <span class="text-slate-400 block text-[9px]">1币≈韩元</span>
+              <input v-model.number="exchangeRate.coinToKrw" type="number" class="w-12 font-bold border-b border-slate-300 focus:outline-none" /> ₩
+            </div>
+            <div class="border-l pl-2">
+              <span class="text-slate-400 block text-[9px]">1000₩≈元</span>
+              <input v-model.number="exchangeRate.krwToCny" type="number" step="0.1" class="w-10 font-bold border-b border-slate-300 focus:outline-none" /> ¥
+            </div>
           </div>
-          <div class="border-l pl-3">
-            <span class="text-slate-400 block text-[10px]">1000韩元≈人民币</span>
-            <input v-model.number="exchangeRate.krwToCny" type="number" step="0.1" class="w-12 font-bold border-b border-slate-300 focus:outline-none" /> ¥
+
+          <!-- 美元结算区 (USD - Lezhin US 专属) -->
+          <div class="bg-white p-2 rounded-xl border border-purple-200 shadow-sm flex items-center gap-3">
+            <span class="font-bold text-purple-600 text-[11px] bg-purple-50 px-1 rounded">美元区(US)</span>
+            <div>
+              <span class="text-slate-400 block text-[9px]">1 US币≈美元</span>
+              <input v-model.number="exchangeRate.usCoinToUsd" type="number" step="0.005" class="w-14 font-bold border-b border-purple-300 focus:outline-none" /> $
+            </div>
+            <div class="border-l pl-2">
+              <span class="text-slate-400 block text-[9px]">$1≈元</span>
+              <input v-model.number="exchangeRate.usdToCny" type="number" step="0.1" class="w-10 font-bold border-b border-purple-300 focus:outline-none" /> ¥
+            </div>
           </div>
         </div>
 
-        <!-- 管理员状态：已登录时展示导入/导出与退出工具 -->
+        <!-- 管理员状态工具 -->
         <div v-if="isAdmin" class="flex items-center gap-2 bg-emerald-50 border border-emerald-200 p-1.5 rounded-xl">
           <input type="file" ref="fileInput" @change="handleImportExcel" accept=".xlsx,.xls,.csv" class="hidden" />
           <button @click="$refs.fileInput.click()" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm transition">
@@ -60,7 +78,6 @@
           </button>
         </div>
 
-        <!-- 普通访客状态：仅显示一个小锁入口 -->
         <div v-else class="flex justify-end">
           <button @click="loginAdmin" title="管理员管理入口" class="text-xs text-slate-400 hover:text-slate-700 transition flex items-center gap-1">
             <span>🔒 管理员入口</span>
@@ -73,7 +90,7 @@
     <section class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm mb-6 space-y-4">
       <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
         <div class="sm:col-span-5 relative">
-          <input v-model="filters.query" type="text" placeholder="搜索作品名(中/韩/英)..." class="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-xl focus:border-rose-500 outline-none" />
+          <input v-model="filters.query" type="text" placeholder="搜索作品名(中/韩/英)或活动名..." class="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-xl focus:border-rose-500 outline-none" />
           <span class="absolute left-3 top-2.5 text-slate-400">🔍</span>
         </div>
         <div class="sm:col-span-4">
@@ -87,10 +104,10 @@
             <option value="">全部优惠力度 (All Types)</option>
             <option value="100% Coinback">100% 全额返币</option>
             <option value="100% Payback">100% 积分返还</option>
-            <option value="1c 展">1 Coin (1c 特惠)</option>
+            <option value="1c 展">1 Coin (1c 展)</option>
             <option value="2c 展">2 Coin (2c 特惠)</option>
-            <option value="50% 折扣">50% 半价</option>
-            <option value="积分返现">积分返现 (Pointback)</option>
+            <option value="50% 折扣">50% 半价/租借折减</option>
+            <option value="积分返现">大额返现 (Cashback)</option>
           </select>
         </div>
       </div>
@@ -106,10 +123,13 @@
               <span class="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md font-medium">{{ work.genre }}</span>
               <span class="text-xs text-slate-400">共 {{ work.total_episodes }} 话</span>
             </div>
-            <h2 class="text-xl font-bold text-slate-900">{{ work.title_zh }} <span class="text-sm font-normal text-slate-500">({{ work.title_ko }})</span></h2>
+            <h2 class="text-xl font-bold text-slate-900">
+              {{ work.title_zh }} 
+              <span v-if="work.title_ko" class="text-sm font-normal text-slate-500">({{ work.title_ko }})</span>
+            </h2>
           </div>
           <div class="text-right">
-            <span class="text-xs text-slate-400 block">标准单话价格</span>
+            <span class="text-xs text-slate-400 block">常规单话原价</span>
             <span class="font-bold text-slate-700 font-mono">{{ work.original_coin_per_ep }} {{ work.currency }}</span>
           </div>
         </div>
@@ -135,19 +155,21 @@
       </div>
     </main>
 
-    <!-- 弹窗计算器 -->
+    <!-- 弹窗计算器 (已适配美元与韩元双轨运算) -->
     <div v-if="calculator.visible && calculator.work" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl border">
         <div class="flex justify-between items-start border-b pb-3">
           <div>
-            <div class="text-xs font-semibold text-indigo-600">{{ calculator.work.platform }}</div>
+            <div class="text-xs font-semibold" :class="isUsdPlatform ? 'text-purple-600' : 'text-indigo-600'">
+              {{ calculator.work.platform }} ({{ isUsdPlatform ? '美元结算' : '韩元结算' }})
+            </div>
             <h3 class="text-lg font-bold text-slate-900">{{ calculator.work.title_zh }}</h3>
           </div>
           <button @click="calculator.visible = false" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">购买话数 (1 ~ {{ calculator.work.total_episodes }})</label>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">计划购买话数 (1 ~ {{ calculator.work.total_episodes }})</label>
           <input v-model.number="calculator.buyEpisodes" type="number" min="1" :max="calculator.work.total_episodes" class="w-full border rounded-lg p-2 text-sm font-bold" />
         </div>
 
@@ -158,7 +180,7 @@
             <span class="line-through">{{ calcOriginalTotal }} {{ calculator.work.currency }}</span>
           </div>
 
-          <!-- 100% 全额返还专属展示结构：单话半价换算 -->
+          <!-- 100% 全额返还：单话半价展示 -->
           <template v-if="isPayback100">
             <div class="flex justify-between text-xs text-amber-300">
               <span>门槛先付代币：</span>
@@ -166,12 +188,14 @@
             </div>
             <div class="flex justify-between text-xs text-emerald-400">
               <span>全额返还代币 (Bonus)：</span>
-              <span>+ {{ calcCashback }} 代币/积分</span>
+              <span>+ {{ calcCashback }} {{ calculator.work.currency }}</span>
             </div>
             <div class="border-t border-slate-800 pt-2 flex justify-between items-baseline">
               <div>
                 <span class="text-xs text-amber-300 block font-bold">折合实际成本 (单话半价分摊)：</span>
-                <span class="text-[10px] text-slate-400">买一送一机制 · 折合人民币 ≈ ¥{{ calcCnyCost }} 元</span>
+                <span class="text-[10px] text-slate-300">
+                  折合法币 ≈ {{ calcForeignCost }} · 折合人民币 ≈ ¥{{ calcCnyCost }} 元
+                </span>
               </div>
               <div class="text-right">
                 <span class="text-2xl font-black text-amber-400">{{ calcNetCoinCost }}</span>
@@ -180,7 +204,7 @@
             </div>
           </template>
 
-          <!-- 常规折扣/返现展示结构 -->
+          <!-- 常规折扣/返现展示 -->
           <template v-else>
             <div class="flex justify-between text-sm font-semibold text-amber-400">
               <span>活动实际支付：</span>
@@ -188,11 +212,19 @@
             </div>
             <div v-if="calcCashback > 0" class="flex justify-between text-sm font-semibold text-emerald-400">
               <span>活动返还 (Bonus)：</span>
-              <span>+ {{ calcCashback }} 代币/积分</span>
+              <span>+ {{ calcCashback }} {{ calculator.work.currency }}</span>
             </div>
             <div class="border-t border-slate-800 pt-2 flex justify-between items-baseline">
-              <span class="text-xs text-slate-400">折合人民币 ≈ ¥{{ calcCnyCost }} 元</span>
-              <span class="text-2xl font-black">{{ calcNetCoinCost }} <span class="text-xs">{{ calculator.work.currency }}</span></span>
+              <div>
+                <span class="text-xs text-slate-400 block">实际净消耗成本：</span>
+                <span class="text-[10px] text-slate-300">
+                  折合法币 ≈ {{ calcForeignCost }} · 折合人民币 ≈ ¥{{ calcCnyCost }} 元
+                </span>
+              </div>
+              <div class="text-right">
+                <span class="text-2xl font-black text-white">{{ calcNetCoinCost }}</span>
+                <span class="text-xs text-slate-400 ml-1">{{ calculator.work.currency }}</span>
+              </div>
             </div>
           </template>
         </div>
@@ -228,22 +260,22 @@
         }]
       },
       {
-        id: "lz-02",
-        title_ko: "야화첩",
-        title_zh: "夜画帐",
-        platform: "Lezhin KR",
-        currency: "Coin",
-        genre: "BL / 古风台柱",
-        original_coin_per_ep: 3,
-        total_episodes: 130,
+        id: "lus-01",
+        title_ko: "Pearl Boy",
+        title_zh: "珍珠少年 (Lezhin US)",
+        platform: "Lezhin US",
+        currency: "US Coin",
+        genre: "BL / 现代",
+        original_coin_per_ep: 30,
+        total_episodes: 90,
         history: [{
-          event_name: "2026 추석 다다익선 대기획 (中秋多多益善展)",
-          event_type: "2c 展",
-          date: "2026-09-24",
-          pay_coin: 2,
-          cashback_ratio: 0.3,
-          target_episodes: "前 30 话",
-          rule_desc: "前30话降至2c，消费满50币额外返30%"
+          event_name: "2026 Summer Sale 50% Off Bundle",
+          event_type: "50% 折扣",
+          date: "2026-07-15",
+          pay_coin: 15,
+          cashback_ratio: 0.0,
+          target_episodes: "全篇打包",
+          rule_desc: "全套打包享受半价优惠 (每话仅需15 US Coin)"
         }]
       },
       {
@@ -334,7 +366,17 @@
           checkAdminStatus();
 
           var works = ref(DEFAULT_DATA);
-          var exchangeRate = ref({ coinToKrw: 120, krwToCny: 5.3 });
+
+          // 【双轨汇率引擎配置】
+          var exchangeRate = ref({
+            // 韩元区（Lezhin KR, Bomtoon, Mr.Blue）
+            coinToKrw: 120,      // 1 韩币 ≈ 120 韩元
+            krwToCny: 5.3,       // 1000 韩元 ≈ 5.3 人民币
+            // 美元区（Lezhin US 专属）
+            usCoinToUsd: 0.025,  // 1 US Coin ≈ $0.025 美元 (即 $1 ≈ 40币)
+            usdToCny: 7.2        // 1 美元 ≈ 7.2 人民币
+          });
+
           var filters = ref({ query: '', platform: '', eventType: '' });
           var platformList = ['Lezhin KR', 'Bomtoon', 'Ridibooks', 'Mr.Blue', 'Lezhin US'];
 
@@ -368,8 +410,8 @@
             return works.value.filter(function(work) {
               var q = filters.value.query.trim().toLowerCase();
               var matchQuery = !q ||
-                work.title_ko.toLowerCase().indexOf(q) !== -1 ||
-                work.title_zh.toLowerCase().indexOf(q) !== -1 ||
+                (work.title_ko && work.title_ko.toLowerCase().indexOf(q) !== -1) ||
+                (work.title_zh && work.title_zh.toLowerCase().indexOf(q) !== -1) ||
                 work.history.some(function(h) { return h.event_name.toLowerCase().indexOf(q) !== -1; });
 
               var matchPlatform = !filters.value.platform || work.platform === filters.value.platform;
@@ -410,7 +452,15 @@
             };
           };
 
-          // 判断当前活动是否为 100% 全额返还活动
+          // 核心判断：是否属于美元结算平台（Lezhin US）
+          var isUsdPlatform = computed(function() {
+            return calculator.value.work && (
+              calculator.value.work.platform === 'Lezhin US' ||
+              calculator.value.work.currency === 'US Coin'
+            );
+          });
+
+          // 核心判断：是否为 100% 全额返还活动
           var isPayback100 = computed(function() {
             if (!calculator.value.event) return false;
             var type = calculator.value.event.event_type || '';
@@ -418,45 +468,65 @@
             return type.indexOf('100%') !== -1 || ratio >= 1.0;
           });
 
-          // 原价总计
           var calcOriginalTotal = computed(function() {
             if (!calculator.value.work) return 0;
             return calculator.value.buyEpisodes * calculator.value.work.original_coin_per_ep;
           });
 
-          // 门槛需付代币
           var calcDiscountedPay = computed(function() {
             if (!calculator.value.event) return 0;
             return Math.ceil(calculator.value.buyEpisodes * (calculator.value.event.pay_coin || 3));
           });
 
-          // 返还赠币/积分数量
           var calcCashback = computed(function() {
             if (!calculator.value.event) return 0;
             return Math.floor(calcDiscountedPay.value * (calculator.value.event.cashback_ratio || 0));
           });
 
-          // 【核心修改】：100% 返还按“单话半价”分摊计算净成本！
+          // 100% 返还按“单话半价”计算
           var calcNetCoinCost = computed(function() {
             if (!calculator.value.work || !calculator.value.event) return 0;
             if (isPayback100.value) {
-              // 单话半价折算（例如原价 3币/话，折合 1.5币/话）
               return Math.ceil(calcOriginalTotal.value / 2);
             }
-            // 普通折扣或返现活动
             return Math.max(0, calcDiscountedPay.value - calcCashback.value);
           });
 
-          // 人民币成本估算
+          // 外币原币种金额估算（区分美元与韩元）
+          var calcForeignCost = computed(function() {
+            if (!calculator.value.work) return '0';
+            // 美元区 (Lezhin US)
+            if (isUsdPlatform.value) {
+              var usd = calcNetCoinCost.value * exchangeRate.value.usCoinToUsd;
+              return '$' + usd.toFixed(2) + ' 美元';
+            }
+            // Ridibooks 平台本身就以韩元为单位
+            if (calculator.value.work.platform === 'Ridibooks') {
+              return Math.round(calcNetCoinCost.value).toLocaleString() + ' ₩ 韩元';
+            }
+            // 韩元区普通代币
+            var krw = calcNetCoinCost.value * exchangeRate.value.coinToKrw;
+            return Math.round(krw).toLocaleString() + ' ₩ 韩元';
+          });
+
+          // 最终折合人民币估算 (精准区分美元汇率与韩元汇率)
           var calcCnyCost = computed(function() {
-            if (calculator.value.work && calculator.value.work.platform === 'Ridibooks') {
+            if (!calculator.value.work) return '0.00';
+            // 1. 如果是 Lezhin US：代币 -> 美元 -> 人民币
+            if (isUsdPlatform.value) {
+              var usd = calcNetCoinCost.value * exchangeRate.value.usCoinToUsd;
+              return (usd * exchangeRate.value.usdToCny).toFixed(2);
+            }
+            // 2. 如果是 Ridibooks：韩元 -> 人民币
+            if (calculator.value.work.platform === 'Ridibooks') {
               return ((calcNetCoinCost.value / 1000) * exchangeRate.value.krwToCny).toFixed(2);
             }
+            // 3. 韩版平台：代币 -> 韩元 -> 人民币
             var krw = calcNetCoinCost.value * exchangeRate.value.coinToKrw;
             return ((krw / 1000) * exchangeRate.value.krwToCny).toFixed(2);
           });
 
-          // Excel 导入与解析（支持 46317 转 YYYY-MM-DD，并直接持久化保存）
+          // Excel 导入与解析
           var handleImportExcel = function(e) {
             if (!isAdmin.value) {
               alert("无权操作！请先登录管理员。");
@@ -492,15 +562,20 @@
                   var titleKo = row['作品韩文名'] || titleZh;
                   var key = platform + '_' + titleKo;
 
+                  // 自动适配货币种类
+                  var currency = 'Coin';
+                  if (platform === 'Lezhin US') currency = 'US Coin';
+                  else if (platform === 'Ridibooks') currency = 'Point/Cash';
+
                   if (!workMap.has(key)) {
                     workMap.set(key, {
                       id: 'import-' + Date.now() + '-' + i,
                       title_ko: String(titleKo),
                       title_zh: String(titleZh),
                       platform: String(platform),
-                      currency: platform === 'Ridibooks' ? 'Point/Cash' : 'Coin',
+                      currency: currency,
                       genre: row['类型'] || 'BL',
-                      original_coin_per_ep: Number(row['单话原价']) || 3,
+                      original_coin_per_ep: Number(row['单话原价']) || (platform === 'Lezhin US' ? 30 : 3),
                       total_episodes: Number(row['总话数']) || 10,
                       history: []
                     });
@@ -530,21 +605,38 @@
           };
 
           var downloadTemplate = function() {
-            var template = [{
-              "平台": "Lezhin KR",
-              "作品中文名": "西西弗斯的狗",
-              "作品韩文名": "시시포스의 개들",
-              "类型": "BL",
-              "单话原价": 3,
-              "总话数": 45,
-              "活动时间": "2026-10-22",
-              "活动名称": "72小时100%返币",
-              "优惠类型": "100% Coinback",
-              "活动单价": 3,
-              "返还比例": 1.0,
-              "适用范围": "全篇",
-              "规则备注": "全额返还Bonus币(单话折合半价)"
-            }];
+            var template = [
+              {
+                "平台": "Lezhin KR",
+                "作品中文名": "西西弗斯的狗",
+                "作品韩文名": "시시포스의 개들",
+                "类型": "BL",
+                "单话原价": 3,
+                "总话数": 45,
+                "活动时间": "2026-10-22",
+                "活动名称": "72小时100%返币",
+                "优惠类型": "100% Coinback",
+                "活动单价": 3,
+                "返还比例": 1.0,
+                "适用范围": "全篇",
+                "规则备注": "全额返还Bonus币(单话折合半价)"
+              },
+              {
+                "平台": "Lezhin US",
+                "作品中文名": "珍珠少年",
+                "作品韩文名": "Pearl Boy",
+                "类型": "BL",
+                "单话原价": 30,
+                "总话数": 90,
+                "活动时间": "2026-07-15",
+                "活动名称": "Summer Sale 50% Off",
+                "优惠类型": "50% 折扣",
+                "活动单价": 15,
+                "返还比例": 0.0,
+                "适用范围": "全本打包",
+                "规则备注": "美元结算·半价优惠"
+              }
+            ];
             var ws = XLSX.utils.json_to_sheet(template);
             var wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "导入模板");
@@ -553,6 +645,7 @@
 
           return {
             isAdmin: isAdmin,
+            isUsdPlatform: isUsdPlatform,
             isPayback100: isPayback100,
             loginAdmin: loginAdmin,
             logoutAdmin: logoutAdmin,
@@ -569,6 +662,7 @@
             calcDiscountedPay: calcDiscountedPay,
             calcCashback: calcCashback,
             calcNetCoinCost: calcNetCoinCost,
+            calcForeignCost: calcForeignCost,
             calcCnyCost: calcCnyCost,
             handleImportExcel: handleImportExcel,
             downloadTemplate: downloadTemplate,
