@@ -27,7 +27,7 @@
           <span>✨ 韩漫作品近来促销活动 (在线测算)</span>
         </div>
         <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">韩漫作品近来促销活动 & 抄底测算器</h1>
-        <p class="text-slate-500 text-sm mt-1">已涵盖 Lezhin KR、Bomtoon、Ridi、Mr.Blue 与 Lezhin US</p>
+        <p class="text-slate-500 text-sm mt-1">已涵盖 Lezhin KR、Bomtoon、Ridi、Mr.Blue 与 Lezhin US </p>
       </div>
 
       <!-- 汇率设置与权限管理栏 -->
@@ -115,10 +115,10 @@
             <option value="">全部优惠力度 (All Types)</option>
             <option value="100% Coinback">100% 全额返币</option>
             <option value="100% Payback">100% 积分返还</option>
-            <option value="1c 展">1 Coin (1c 展)</option>
+            <option value="1c 展">1 Coin (1c 特惠)</option>
             <option value="2c 展">2 Coin (2c 特惠)</option>
             <option value="50% 折扣">50% 半价</option>
-            <option value="积分返现">积分返还 (Pointback)</option>
+            <option value="积分返还">积分返还 (Pointback)</option>
           </select>
         </div>
       </div>
@@ -134,14 +134,13 @@
         </p>
       </div>
 
-      <!-- 作品卡片列表 -->
+      <!-- 作品卡片列表 (已完全取消展示总话数) -->
       <div v-for="work in filteredWorks" :key="work.id" class="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
         <div class="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div class="flex items-center gap-2 mb-1.5">
               <span class="px-2.5 py-0.5 text-xs font-bold rounded-md" :class="getPlatformBadge(work.platform)">{{ work.platform }}</span>
               <span class="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md font-medium">{{ work.genre }}</span>
-              <span class="text-xs text-slate-400">共 {{ work.total_episodes }} 话</span>
             </div>
             <h2 class="text-xl font-bold text-slate-900">
               {{ work.title_zh }} 
@@ -175,7 +174,7 @@
       </div>
     </main>
 
-    <!-- 弹窗计算器 -->
+    <!-- 弹窗计算器 (自由填写话数，无任何上限) -->
     <div v-if="calculator.visible && calculator.work" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl border">
         <div class="flex justify-between items-start border-b pb-3">
@@ -189,8 +188,14 @@
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">计划购买话数 (1 ~ {{ calculator.work.total_episodes }})</label>
-          <input v-model.number="calculator.buyEpisodes" type="number" min="1" :max="calculator.work.total_episodes" class="w-full border rounded-lg p-2 text-sm font-bold" />
+          <label class="block text-xs font-semibold text-slate-700 mb-1">计划购买话数 (可随意自由填写任意话数)</label>
+          <input 
+            v-model.number="calculator.buyEpisodes" 
+            type="number" 
+            min="1" 
+            placeholder="请输入欲购买的话数" 
+            class="w-full border border-slate-300 rounded-lg p-2.5 text-base font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition" 
+          />
         </div>
 
         <!-- 费用测算结果面板 -->
@@ -214,7 +219,7 @@
               <div>
                 <span class="text-xs text-amber-300 block font-bold">折合实际成本 (单话半价分摊)：</span>
                 <span class="text-[10px] text-slate-300">
-                  折合人民币 ≈ ¥{{ calcCnyCost }} 元
+                   折合人民币 ≈ ¥{{ calcCnyCost }} 元
                 </span>
               </div>
               <div class="text-right">
@@ -232,7 +237,7 @@
             </div>
             <div v-if="calcCashback > 0" class="flex justify-between text-sm font-semibold text-emerald-400">
               <span>活动返还 (Bonus)：</span>
-              <span>+ {{ calcCashback }} {{ calculator.work.currency }}</span>
+              <span>+ {{ calcCashback }} 代币/积分</span>
             </div>
             <div class="border-t border-slate-800 pt-2 flex justify-between items-baseline">
               <div>
@@ -259,7 +264,6 @@
 
   <!-- 核心逻辑脚本 -->
   <script>
-    // 初始清空所有写死的默认数据，完全由导入的数据主导
     var DEFAULT_DATA = [];
 
     window.addEventListener('DOMContentLoaded', function() {
@@ -322,7 +326,6 @@
           var filters = ref({ query: '', platform: '', eventType: '' });
           var platformList = ['Lezhin KR', 'Bomtoon', 'Ridibooks', 'Mr.Blue', 'Lezhin US'];
 
-          // 读取本地存储中的数据（若无则为空列表）
           var fetchProducts = function() {
             var localData = localStorage.getItem('custom_comic_works');
             if (localData) {
@@ -341,7 +344,6 @@
             fetchProducts();
           });
 
-          // 清空所有已导入的数据
           var clearAllData = function() {
             if (confirm("确定要清空已导入的全部作品数据吗？清空后列表将变回空白。")) {
               localStorage.removeItem('custom_comic_works');
@@ -387,12 +389,13 @@
 
           var calculator = ref({ visible: false, work: null, event: null, buyEpisodes: 10 });
 
+          // 打开测算器：默认填 10 话作为初始示例，用户可自由改写任意数字
           var openCalculator = function(work, event) {
             calculator.value = {
               visible: true,
               work: work,
               event: event,
-              buyEpisodes: work.total_episodes || 10
+              buyEpisodes: 10
             };
           };
 
@@ -403,14 +406,20 @@
             return type.indexOf('100%') !== -1 || ratio >= 1.0;
           });
 
+          // 安全获取用户输入的购买话数（防呆，如果删除输入框不会变 NaN）
+          var getBuyCount = function() {
+            var val = Number(calculator.value.buyEpisodes);
+            return (isNaN(val) || val < 0) ? 0 : val;
+          };
+
           var calcOriginalTotal = computed(function() {
             if (!calculator.value.work) return 0;
-            return calculator.value.buyEpisodes * calculator.value.work.original_coin_per_ep;
+            return getBuyCount() * calculator.value.work.original_coin_per_ep;
           });
 
           var calcDiscountedPay = computed(function() {
             if (!calculator.value.event) return 0;
-            return Math.ceil(calculator.value.buyEpisodes * (calculator.value.event.pay_coin || 3));
+            return Math.ceil(getBuyCount() * (calculator.value.event.pay_coin || 3));
           });
 
           var calcCashback = computed(function() {
@@ -436,7 +445,6 @@
             return '100₩ = ' + rates.value.korean_won_100w + '¥';
           });
 
-          // 核心人民币折算算法
           var calcCnyCost = computed(function() {
             if (!calculator.value.work) return '0.00';
             var p = calculator.value.work.platform;
@@ -483,7 +491,6 @@
                 var workbook = XLSX.read(data, { type: 'array' });
                 var rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
 
-                // 先读取已有全部作品数据
                 var workMap = new Map();
                 works.value.forEach(function(w) {
                   var oldKey = w.platform + '_' + (w.title_ko || w.title_zh);
@@ -519,15 +526,12 @@
                       currency: currency,
                       genre: row['类型'] || 'BL',
                       original_coin_per_ep: Number(row['单话原价']) || defOriginal,
-                      total_episodes: Number(row['总话数']) || 10,
                       history: []
                     });
                   }
 
                   var targetWork = workMap.get(key);
 
-                  // 覆盖修正作品信息（总话数、原价、中文名等）
-                  if (row['总话数']) targetWork.total_episodes = Number(row['总话数']);
                   if (row['单话原价']) targetWork.original_coin_per_ep = Number(row['单话原价']);
                   if (row['作品中文名']) targetWork.title_zh = String(row['作品中文名']);
                   if (row['类型']) targetWork.genre = String(row['类型']);
@@ -545,17 +549,14 @@
                     rule_desc: String(row['规则备注'] || '无')
                   };
 
-                  // 检查是否已有该条活动
                   var existingIndex = targetWork.history.findIndex(function(h) {
                     return h.event_name === eventName && h.date === eventDate;
                   });
 
                   if (existingIndex !== -1) {
-                    // 已存在：直接用修正后的最新内容覆盖错误
                     targetWork.history[existingIndex] = newEventObj;
                     updatedEventCount++;
                   } else {
-                    // 全新活动：追加在历史时间轴前方
                     targetWork.history.unshift(newEventObj);
                     newEventCount++;
                   }
@@ -586,7 +587,6 @@
                 "作品韩文名": "예시작품A",
                 "类型": "BL",
                 "单话原价": 3,
-                "总话数": 45,
                 "活动时间": "2026-10-22",
                 "活动名称": "72小时100%返币",
                 "优惠类型": "100% Coinback",
@@ -601,7 +601,6 @@
                 "作品韩文名": "예시작품B",
                 "类型": "BL",
                 "单话原价": 3,
-                "总话数": 65,
                 "活动时间": "2026-01-01",
                 "活动名称": "BAAM Festa 1c展",
                 "优惠类型": "1c 展",
